@@ -9,7 +9,7 @@ cursor_b = conn_b.cursor()
 try:
 
     cursor_b.execute("""
-    DO $$
+DO $$
     DECLARE
         v_table_name text;
         v_column_name text := 'last_update';  -- Nombre de la nueva columna
@@ -21,7 +21,7 @@ try:
             FROM information_schema.tables
             WHERE table_schema = 'public'  -- Ajusta esto si las tablas están en otro esquema
             AND table_type = 'BASE TABLE'
-            AND table_name IN ('department')  -- Lista de tablas
+            AND table_name IN ('origin','taxes','status','technician')  -- Lista de tablas
         LOOP
             -- Verifica si la columna ya existe
             IF NOT EXISTS (

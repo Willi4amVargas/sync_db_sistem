@@ -22,6 +22,9 @@ def sync_tables(cursor_a, cursor_b, conn_a, conn_b, table_name, timestamp_column
     
     columns = fetch_column_names(cursor_a, table_name)
 
+    disable_constraints(cursor_a, table_name)
+    disable_constraints(cursor_b, table_name)
+
     for key in all_keys:
         row_a = dict_a.get(key)
         row_b = dict_b.get(key)
@@ -33,31 +36,27 @@ def sync_tables(cursor_a, cursor_b, conn_a, conn_b, table_name, timestamp_column
             if last_update_a and last_update_b:
                 if last_update_a < last_update_b:
                     update_row(cursor_a, conn_a, table_name, columns, row_b, key)
-                    print("Se Actualizo con exito la base de datos A")
                 elif last_update_a > last_update_b:
                     update_row(cursor_b, conn_b, table_name, columns, row_a, key)
-                    print("Se Actualizo con exito la base de datos B")
             elif last_update_a is None:
                 update_row(cursor_a, conn_a, table_name, columns, row_b, key)
-                print("Se Actualizo con exito la base de datos A")
             elif last_update_b is None:
                 update_row(cursor_b, conn_b, table_name, columns, row_a, key)
-                print("Se Actualizo con exito la base de datos B")
         elif row_a and not row_b:
             try:
                 insert_row(cursor_b, conn_b, table_name, columns, row_a)
-                print("Se Insertaron con exito datos en la base de datos B")
             except psycopg2.errors.UniqueViolation:
                 handle_duplicate(cursor_b, conn_b, table_name, columns, row_a, key)
-                print("Se actualizaron con exito datos duplicados a los mas actuales")
         elif row_b and not row_a:
             try:
                 insert_row(cursor_a, conn_a, table_name, columns, row_b)
-                print("Se Insertaron con exito datos en la base de datos A")
             except psycopg2.errors.UniqueViolation:
                 handle_duplicate(cursor_a, conn_a, table_name, columns, row_b, key)
-                print("Se actualizaron con exito datos duplicados a los mas actuales")
-    print('Tabla ',table_name,' correctamente sincronizada')
+
+    enable_constraints(cursor_a, table_name)
+    enable_constraints(cursor_b, table_name)
+    
+    print('Tabla', table_name, 'correctamente sincronizada')
 
 def update_row(cursor, conn, table_name, columns, row, key):
     set_clause = ', '.join([f"{col}=%s" for col in columns if col != columns[0]])
@@ -82,6 +81,16 @@ def handle_duplicate(cursor, conn, table_name, columns, row, key):
         last_update_new = row[columns.index('last_update')]
         if last_update_existing < last_update_new:
             update_row(cursor, conn, table_name, columns, row, key)
+
+def disable_constraints(cursor, table_name):
+    # Para PostgreSQL 9.1.3, deshabilitamos los triggers para las constraints
+    cursor.execute(f"ALTER TABLE {table_name} DISABLE TRIGGER USER;")
+    cursor.connection.commit()
+
+def enable_constraints(cursor, table_name):
+    # Para PostgreSQL 9.1.3, habilitamos los triggers para las constraints
+    cursor.execute(f"ALTER TABLE {table_name} ENABLE TRIGGER USER;")
+    cursor.connection.commit()
 
 def sync_tables_final(table):
     timestamp_column = 'last_update'  # Cambiar según sea necesario

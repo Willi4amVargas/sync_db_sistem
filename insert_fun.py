@@ -7,58 +7,43 @@ conn_b = db2()
 cursor_b = conn_b.cursor()
 
 query="""
--- Function: set_department(character varying, character varying, character varying, double precision, double precision, double precision, double precision, character varying)
+-- Function: set_technician(character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, character varying)
 
--- DROP FUNCTION set_department(character varying, character varying, character varying, double precision, double precision, double precision, double precision, character varying);
+-- DROP FUNCTION set_technician(character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, character varying);
 
-CREATE OR REPLACE FUNCTION set_department(p_code character varying, p_name character varying, p_father_department character varying, p_percent_maximum_price double precision, p_percent_offer_price double precision, p_percent_higher_price double precision, p_percent_minimum_price double precision, p_action character varying)
+CREATE OR REPLACE FUNCTION set_technician(p_code character varying, p_name character varying, p_status character varying, p_percent_commission_maximum_price double precision, p_percent_commission_offer_price double precision, p_percent_commission_higher_price double precision, p_percent_commission_minimum_price double precision, p_percent_commission_variable_price double precision, p_action character varying)
   RETURNS void AS
 $BODY$begin
 	if(p_action='I')then
 
-		if(exists(select code from department where code=p_code))then
-			update department
+		if(exists(select code from technician where code=p_code))then
+			update technician
 			set
 			description=p_name,
-			father_department=p_father_department,
-			perc_maximum_price=p_percent_maximum_price,
-			perc_offer_price=p_percent_offer_price,
-			perc_higher_price=p_percent_higher_price,
-			perc_minimum_price=p_percent_minimum_price,
+			status = p_status,
+			percent_commission_maximum_price = p_percent_commission_maximum_price,
+			percent_commission_offer_price = p_percent_commission_offer_price,
+			percent_commission_higher_price = p_percent_commission_higher_price,
+			percent_commission_minimum_price = p_percent_commission_minimum_price,
+			percent_commission_variable_price = p_percent_commission_variable_price,
 			last_update=NOW()
 			where code = p_code;
 		else
-			insert into department
-			(code,
-			description,
-			father_department,
-			perc_maximum_price,
-			perc_offer_price,
-			perc_higher_price,
-			perc_minimum_price,
-			last_update
-			)values
-			(p_code,
-			p_name,
-			p_father_department,
-			p_percent_maximum_price,
-			p_percent_offer_price,
-			p_percent_higher_price,
-			p_percent_minimum_price,
-			NOW());
+			insert into technician
+			(code,description,status,percent_commission_maximum_price,percent_commission_offer_price,percent_commission_higher_price,percent_commission_minimum_price,percent_commission_variable_price,last_update)
+			values(p_code,p_name,p_status,p_percent_commission_maximum_price,p_percent_commission_offer_price,p_percent_commission_higher_price,p_percent_commission_minimum_price,p_percent_commission_variable_price,NOW());
 		end if;		
 	
 
 	else
-		delete from department where code=p_code;
+		delete from technician where code=p_code;
 	end if;
 end
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION set_department(character varying, character varying, character varying, double precision, double precision, double precision, double precision, character varying)
+ALTER FUNCTION set_technician(character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, character varying)
   OWNER TO postgres;
-
 
 """
 
