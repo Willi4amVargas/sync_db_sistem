@@ -1,8 +1,9 @@
 import psycopg2
 from db1 import db1 as db1
 from db2 import db2 as db2
+from tqdm import tqdm
 
-def sync_table(table_name):
+def sync_table(table_name,pbar):
     try:
         # Conectar a la primera base de datos
         conn_a = db1()
@@ -24,7 +25,8 @@ def sync_table(table_name):
         dict_b = {row[0]: row for row in rows_b}
         
         # Obtener columnas de la tabla
-        cursor_a.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';")
+        getColumns=f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}' ORDER BY ordinal_position;"
+        cursor_a.execute(getColumns)
         columns = [col[0] for col in cursor_a.fetchall()]
         update_columns = ", ".join([f"{col} = %s" for col in columns[1:]]) # Saltar la columna de clave primaria
         
@@ -43,50 +45,44 @@ def sync_table(table_name):
                 if last_update_a is not None and last_update_b is not None:
                     if last_update_a < last_update_b:
                         # La fila en B es más reciente, actualizar A
-                        cursor_a.execute(f"""
-                            UPDATE {table_name} SET {update_columns}
-                            WHERE {columns[0]} = %s
-                        """, row_b[1:] + (row_b[0],))
+                        query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
+                        params= row_b[1:] + (row_b[0],)
+
+                        cursor_a.execute(query,params)
                         conn_a.commit()
                     elif last_update_a > last_update_b:
                         # La fila en A es más reciente, actualizar B
-                        cursor_b.execute(f"""
-                            UPDATE {table_name} SET {update_columns}
-                            WHERE {columns[0]} = %s
-                        """, row_a[1:] + (row_a[0],))
+                        query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
+                        params= row_a[1:] + (row_a[0],)
+
+                        cursor_b.execute(query,params)
                         conn_b.commit()
                 elif last_update_a is None:
                     # La fila en B tiene fecha, pero A no, actualizar A
-                    cursor_a.execute(f"""
-                        UPDATE {table_name} SET {update_columns}
-                        WHERE {columns[0]} = %s
-                    """, row_b[1:] + (row_b[0],))
+                    query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
+                    params=row_b[1:] + (row_b[0],)
+                    cursor_a.execute(query,params)
                     conn_a.commit()
                 elif last_update_b is None:
                     # La fila en A tiene fecha, pero B no, actualizar B
-                    cursor_b.execute(f"""
-                        UPDATE {table_name} SET {update_columns}
-                        WHERE {columns[0]} = %s
-                    """, row_a[1:] + (row_a[0],))
+                    query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s """
+                    params=row_a[1:] + (row_a[0],)
+                    cursor_b.execute(query,params)
                     conn_b.commit()
                     
             elif row_a and not row_b:
                 # La fila está en A pero no en B, insertar en B
                 placeholders = ", ".join(["%s"] * len(row_a))
-                cursor_b.execute(f"""
-                    INSERT INTO {table_name} ({', '.join(columns)})
-                    VALUES ({placeholders})
-                """, row_a)
+                query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                cursor_b.execute(query,row_a)
                 conn_b.commit()
             elif row_b and not row_a:
                 # La fila está en B pero no en A, insertar en A
                 placeholders = ", ".join(["%s"] * len(row_b))
-                cursor_a.execute(f"""
-                    INSERT INTO {table_name} ({', '.join(columns)})
-                    VALUES ({placeholders})
-                """, row_b)
+                query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                cursor_a.execute(query,row_b)
                 conn_a.commit()
-        print("Se sincronizo ",table_name)
+        pbar.update(1)
 
     except psycopg2.Error as e:
         print(f"Error: {e}")
@@ -104,9 +100,24 @@ def sync_table(table_name):
 
 def main():
     # Llamada a la función
-    tables= ['coin','citys','provinces','sellers','clients','department','products','products_units'] 
+    tables = ['coin', 'citys', 'provinces', 'sellers', 'clients', 'department', 'products', 'products_units']
+    
+    # Calcular el número total de filas para todas las tablas
+    total_rows = 0
+    conn_a = db1()
+    cursor_a = conn_a.cursor()
     for table in tables:
-        sync_table(table)
+        cursor_a.execute(f"SELECT COUNT(*) FROM {table};")
+        total_rows += cursor_a.fetchone()[0]
+    cursor_a.close()
+    conn_a.close()
+    
+    # Crear la barra de progreso para todas las tablas
+    with tqdm(total=total_rows, desc="Sincronizando tablas", unit="fila") as pbar:
+        for table in tables:
+            sync_table(table, pbar)
+        print('Sincronizacion finalizada con exito')
+
 
 if __name__ == '__main__':
     main()
