@@ -1,9 +1,12 @@
 import psycopg2
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 from db1 import db1 as db1
 from db2 import db2 as db2
+
 from tqdm import tqdm
 
-def sync_table(table_name,pbar):
+def sync_table(table_name):
     try:
         # Conectar a la primera base de datos
         conn_a = db1()
@@ -47,26 +50,30 @@ def sync_table(table_name,pbar):
                         # La fila en B es más reciente, actualizar A
                         query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                         params= row_b[1:] + (row_b[0],)
-
-                        cursor_a.execute(query,params)
+                        print(query,params)
+                        #cursor_a.execute(query,params)
+                        cursor_a.execute(query, params)
                         conn_a.commit()
+                        
                     elif last_update_a > last_update_b:
                         # La fila en A es más reciente, actualizar B
                         query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                         params= row_a[1:] + (row_a[0],)
-
+                        print(query,params)
                         cursor_b.execute(query,params)
                         conn_b.commit()
                 elif last_update_a is None:
                     # La fila en B tiene fecha, pero A no, actualizar A
                     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                     params=row_b[1:] + (row_b[0],)
+                    print(query,params)
                     cursor_a.execute(query,params)
                     conn_a.commit()
                 elif last_update_b is None:
                     # La fila en A tiene fecha, pero B no, actualizar B
                     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s """
                     params=row_a[1:] + (row_a[0],)
+                    print(query,params)
                     cursor_b.execute(query,params)
                     conn_b.commit()
                     
@@ -74,15 +81,18 @@ def sync_table(table_name,pbar):
                 # La fila está en A pero no en B, insertar en B
                 placeholders = ", ".join(["%s"] * len(row_a))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                print(query,row_a)
                 cursor_b.execute(query,row_a)
                 conn_b.commit()
             elif row_b and not row_a:
                 # La fila está en B pero no en A, insertar en A
                 placeholders = ", ".join(["%s"] * len(row_b))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                print(query,row_b)
                 cursor_a.execute(query,row_b)
                 conn_a.commit()
-        pbar.update(1)
+            #pbar.update(1)
+        print("Se actualizo la tabla ",table_name)
 
     except psycopg2.Error as e:
         print(f"Error: {e}")
@@ -98,25 +108,135 @@ def sync_table(table_name,pbar):
             conn_b.close()
 
 
+def sync_tables_in_parallel(tables):
+    max_length = max(len(sublist) for sublist in tables)
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        for i in range(max_length):
+            futures = []
+            for sublist in tables:
+                if i < len(sublist):
+                    futures.append(executor.submit(sync_table, sublist[i]))
+            # Esperar a que todas las tareas en la posición i se completen
+            for future in as_completed(futures):
+                future.result()
 def main():
     # Llamada a la función
-    tables = ['coin', 'citys', 'provinces', 'sellers', 'clients', 'department', 'products', 'products_units']
+
+            #  'coin',
+            #  'citys',
+            #  'provinces',
+            #  'sellers',
+            #  'clients',
+            #  'client_groups',
+            #  'clients_addons',
+            #  'clients_address',
+            #  'clients_balance',
+            #  'department',
+            #  'origin',
+            #  'taxes',
+            #  'status',
+            #  'technician',
+            #  'products',
+            #  'products_codes',
+            #  'products_commission'
+            #  'products_image',
+            #  'products_lots',
+            #  'products_lots_stock',
+            #  'products_lots_units',
+            #  'products_parts',
+            #  'products_provider',
+            #  'products_serial',
+            #  'products_statistics',
+            #  'products_stock',
+            #  'products_units',
+            #  'units',
+            #  'users',
+            #  'stations',
+            #  'sales_operation',
+            #  'sales_operation_coins',
+            #  'sales_operation_details',
+            #  'sales_operation_details_coins',
+            #  'sales_operation_details_load',
+            #  'sales_operation_details_lots',
+            #  'sales_operation_details_parts',
+            #  'sales_operation_details_parts_coins',
+            #  'sales_operation_details_serials',
+            #  'sales_operation_taxes',
+            #  'sales_operation_taxes_coins',
+            #  'sales_operation_taxes',
+            #  'receivable',
+            #  'receivable_coins',
+            #  'receivable_details',
+            #  'receivable_details_coins',
+            #  'receivable_returned_check',
+            #  'receivable_taxes',
+            #  'receivable_taxes_coins',
+            #  'provider',
+            #  'debtstopay',
+            #  'debtstopay_coins',
+            #  'debtstopay_details',
+            #  'debtstopay_details_coins',
+            #  'debtstopay_returned_check',
+            #  'debtstopay_taxes',
+            #  'debtstopay_taxes_coins'
+            
+    tables=[
+        ['coin',
+        'units',
+        'store',
+        'users'],
+
+        ['stations',
+        'provider',
+        'locations',
+        'sellers'],
+
+        ['citys',
+        'provinces',
+        'clients',
+        'taxes',
+        'tax_types'],
+
+        ['department',
+        'technician',
+        'status',
+        'origin'],
+
+        ['products',
+        'products_lots',
+        'products_units',
+        'products_stock',
+        'products_provider'],
+
+        ['receivable',
+        'receivable_details',
+        'receivable_coins',
+        'receivable_taxes'],
+
+        ['sales_operation',
+        'sales_operation_coins',
+        'sales_operation_details',
+        'sales_operation_taxes'],
+
+        ['debtstopay',
+        'debtstopay_coins',
+        'debtstopay_details',
+        'debtstopay_taxes']
+        ]
     
-    # Calcular el número total de filas para todas las tablas
-    total_rows = 0
-    conn_a = db1()
-    cursor_a = conn_a.cursor()
-    for table in tables:
-        cursor_a.execute(f"SELECT COUNT(*) FROM {table};")
-        total_rows += cursor_a.fetchone()[0]
-    cursor_a.close()
-    conn_a.close()
+    while True:
+        sync_tables_in_parallel(tables)
+        print('Sincronizacion completa, iniciando otra vez...')
     
-    # Crear la barra de progreso para todas las tablas
-    with tqdm(total=total_rows, desc="Sincronizando tablas", unit="fila") as pbar:
-        for table in tables:
-            sync_table(table, pbar)
-        print('Sincronizacion finalizada con exito')
+
+
+    # tasks = []
+    # for sublist in tables:
+    #     tasks.extend([sync_table(table) for table in sublist])
+    
+    # # Ejecutar todas las tareas concurrentemente
+    # await asyncio.gather(*tasks)
 
 
 if __name__ == '__main__':
