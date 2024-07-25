@@ -1,14 +1,3 @@
-import psycopg2
-from sync_final.db1 import db1 as db1
-from sync_final.db2 import db2 as db2
-
-
-conn_a = db1()
-cursor_a = conn_a.cursor()
-conn_b = db2()
-cursor_b = conn_b.cursor()
-
-query="""
 DO $$
 BEGIN
 
@@ -1991,22 +1980,3 @@ ALTER FUNCTION set_debtstopay_taxes(integer, character varying, double precision
   OWNER TO postgres;
     ';
 END $$;
-
-"""
-
-
-try:
-	cursor_a.execute(query)
-	conn_a.commit()
-	cursor_b.execute(query)
-	conn_b.commit()  # Asegúrate de hacer commit de la transacción
-	print('-----------------Insersion de la funcion realizada con exito-----------------')  
-except psycopg2.Error as e:
-    print(f"Error: {e}")
-finally:
-    cursor_a.close()
-    conn_a.close()
-    cursor_b.close()
-    conn_b.close()
-
-
