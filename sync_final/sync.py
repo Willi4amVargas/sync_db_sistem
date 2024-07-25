@@ -6,7 +6,7 @@ from db2 import db2 as db2
 
 from tqdm import tqdm
 
-def sync_table(table_name):
+async def sync_table(table_name):
     try:
         # Conectar a la primera base de datos
         conn_a = db1()
@@ -108,19 +108,22 @@ def sync_table(table_name):
             conn_b.close()
 
 
-def sync_tables_in_parallel(tables):
+async def run_sync_table_in_executor(executor, table_name):
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(executor, asyncio.run, sync_table(table_name))
+
+async def sync_tables_in_parallel(tables):
     max_length = max(len(sublist) for sublist in tables)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         for i in range(max_length):
-            futures = []
+            tasks = []
             for sublist in tables:
                 if i < len(sublist):
-                    futures.append(executor.submit(sync_table, sublist[i]))
-            # Esperar a que todas las tareas en la posición i se completen
-            for future in as_completed(futures):
-                future.result()
-def main():
+                    tasks.append(run_sync_table_in_executor(executor, sublist[i]))
+            await asyncio.gather(*tasks)
+
+async def main():
     # Llamada a la función
 
             #  'coin',
@@ -226,19 +229,13 @@ def main():
         ]
     
     while True:
-        sync_tables_in_parallel(tables)
+        await sync_tables_in_parallel(tables)
         print('Sincronizacion completa, iniciando otra vez...')
-    
-
-
-    # tasks = []
-    # for sublist in tables:
-    #     tasks.extend([sync_table(table) for table in sublist])
-    
-    # # Ejecutar todas las tareas concurrentemente
-    # await asyncio.gather(*tasks)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Program terminated by user")
 
