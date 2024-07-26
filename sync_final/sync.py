@@ -1,8 +1,9 @@
 import psycopg2
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
-from db1 import db1 as db1
-from db2 import db2 as db2
+import time
+from sync_final.db1 import database1 as db1
+from sync_final.db2 import database2 as db2
 
 
 async def sync_table(table_name):
@@ -49,7 +50,7 @@ async def sync_table(table_name):
                         # La fila en B es más reciente, actualizar A
                         query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                         params= row_b[1:] + (row_b[0],)
-                        print(query,params)
+                        #print(query,params)
                         #cursor_a.execute(query,params)
                         cursor_a.execute(query, params)
                         conn_a.commit()
@@ -58,21 +59,21 @@ async def sync_table(table_name):
                         # La fila en A es más reciente, actualizar B
                         query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                         params= row_a[1:] + (row_a[0],)
-                        print(query,params)
+                        #print(query,params)
                         cursor_b.execute(query,params)
                         conn_b.commit()
                 elif last_update_a is None:
                     # La fila en B tiene fecha, pero A no, actualizar A
                     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                     params=row_b[1:] + (row_b[0],)
-                    print(query,params)
+                    #print(query,params)
                     cursor_a.execute(query,params)
                     conn_a.commit()
                 elif last_update_b is None:
                     # La fila en A tiene fecha, pero B no, actualizar B
                     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s """
                     params=row_a[1:] + (row_a[0],)
-                    print(query,params)
+                    #print(query,params)
                     cursor_b.execute(query,params)
                     conn_b.commit()
                     
@@ -80,18 +81,18 @@ async def sync_table(table_name):
                 # La fila está en A pero no en B, insertar en B
                 placeholders = ", ".join(["%s"] * len(row_a))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                print(query,row_a)
+                #print(query,row_a)
                 cursor_b.execute(query,row_a)
                 conn_b.commit()
             elif row_b and not row_a:
                 # La fila está en B pero no en A, insertar en A
                 placeholders = ", ".join(["%s"] * len(row_b))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                print(query,row_b)
+                #print(query,row_b)
                 cursor_a.execute(query,row_b)
                 conn_a.commit()
             #pbar.update(1)
-        print("Se actualizo la tabla ",table_name)
+        #print("Se actualizo la tabla ",table_name)
 
     except psycopg2.Error as e:
         print(f"Error: {e}")
@@ -122,10 +123,11 @@ async def sync_tables_in_parallel(tables):
                     tasks.append(run_sync_table_in_executor(executor, sublist[i]))
             await asyncio.gather(*tasks)
 
-async def main():
+async def main_sync():
     # Llamada a la función
 
         # 'coin',
+        # 'coin_history',
         # 'units',
         # 'store',
         # 'users',
@@ -158,24 +160,24 @@ async def main():
         # 'debtstopay',
         # 'debtstopay_coins',
         # 'debtstopay_details',
-        # 'debtstopay_taxes'
+        # 'debtstopay_taxes'   
             
     tables=[
         ['coin',
+        'coin_history',
         'units',
         'store',
         'users'],
 
         ['stations',
         'provider',
-        'sellers'],
+        'sellers',
+        'department'],
 
         ['citys',
         'provinces',
         'clients',
-        'taxes'],
-
-        ['department',
+        'taxes',
         'technician'],
 
         ['products',
@@ -202,12 +204,7 @@ async def main():
     
     while True:
         await sync_tables_in_parallel(tables)
-        print('Sincronizacion completa, iniciando otra vez...')
+        #print('Sincronizacion completa, iniciando otra vez...')
+        time.sleep(1)
 
-
-if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Program terminated by user")
 

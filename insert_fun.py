@@ -1,18 +1,11 @@
 import psycopg2
-from sync_final.db1 import db1 as db1
-from sync_final.db2 import db2 as db2
+from sync_final.db1 import database1 as db1
+from sync_final.db2 import database2 as db2
 
 
-conn_a = db1()
-cursor_a = conn_a.cursor()
-conn_b = db2()
-cursor_b = conn_b.cursor()
 
 query="""
-DO $$
-BEGIN
 
-    EXECUTE '
 CREATE OR REPLACE FUNCTION set_coin(p_code character varying, p_name character varying, p_symbol character varying, p_sales_aliquot double precision, p_buy_aliquot double precision, p_factor_type integer, p_rounding_type integer, p_user character varying, p_status character varying, p_show_in_browsers boolean, p_value_inventory boolean, p_apply_igtf boolean, p_action character varying)
   RETURNS void AS
 $BODY$
@@ -30,7 +23,7 @@ begin
 			from coin c
 			where c.code = p_code 
 			into v_sales_aliquot,
-			     v_buy_aliquot;
+			v_buy_aliquot;
 
 			if(p_sales_aliquot <> v_sales_aliquot or p_buy_aliquot <> v_buy_aliquot)then
 
@@ -40,14 +33,16 @@ begin
 			  buy_aliquot, 
 			  register_date, 
 			  register_hour,
-			  user_code)
+			  user_code,
+			  last_update)
 			  values
 			  (p_code, 
 			  p_sales_aliquot, 
 			  p_buy_aliquot, 
 			  current_date,	
 			  current_time, 
-			  p_user); 
+			  p_user,
+			  NOW()); 
 
 			end if;
 			
@@ -63,9 +58,9 @@ begin
 			status = p_status,
 			show_in_browsers = p_show_in_browsers,
 			value_inventory = p_value_inventory,
-			apply_igtf = p_apply_igtf
-			where code = p_code
-            last_update=NOW();
+			apply_igtf = p_apply_igtf,
+			last_update=NOW()
+			where code = p_code;
 
 
 
@@ -84,10 +79,9 @@ $BODY$
   COST 100;
 ALTER FUNCTION set_coin(character varying, character varying, character varying, double precision, double precision, integer, integer, character varying, character varying, boolean, boolean, boolean, character varying)
   OWNER TO postgres;
-    ';
 
 
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_units(p_code character varying, p_name character varying, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -115,10 +109,9 @@ $BODY$
 ALTER FUNCTION set_units(character varying, character varying, character varying)
   OWNER TO postgres;
 
-    ';
 
 
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_store(p_code character varying, p_name character varying, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -127,9 +120,10 @@ $BODY$begin
 		if(exists(select code from store where code=p_code))then
 			update store
 			set
-			description=p_name
-			where code = p_code,
-            last_update=NOW();
+			description=p_name,
+			last_update=NOW()
+			where 
+			code = p_code;
 		else
 			insert into store
 			(code,description,last_update)values(p_code,p_name,NOW());
@@ -146,10 +140,9 @@ $BODY$
 ALTER FUNCTION set_store(character varying, character varying, character varying)
   OWNER TO postgres;
 
-    ';
 
 
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_users(p_code character varying, p_description character varying, p_status character varying, p_email character varying, p_profile character varying, p_user_password character varying, p_security_question character varying, p_answer character varying, p_display_screen boolean, p_change_password boolean, p_allow_change_password boolean, p_allow_store_password boolean, p_company_email character varying, p_technician character varying, p_security_code character varying, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -210,7 +203,7 @@ $BODY$begin
 			p_company_email,			
 			p_technician,
 			p_security_code,
-			last_update);
+			NOW());
 		end if;
 	elsif(p_action = 'D')then
 		delete from users where code = p_code;
@@ -222,9 +215,8 @@ end$BODY$
 ALTER FUNCTION set_users(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, boolean, boolean, boolean, boolean, character varying, character varying, character varying, character varying)
   OWNER TO postgres;
 
-    ';
 
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_stations(p_code character varying, p_name character varying, p_numeration_sales_bill character varying, p_sale_point character varying, p_tactile boolean, p_show_browser_external_mode boolean, p_use_sale_point_numeration boolean, p_numeration_sales_point_bill character varying, p_fiscal_contingency boolean, p_use_arching_box boolean, p_numeration_income character varying, p_bio_sale_point character varying, p_sale_document_type integer, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -291,9 +283,8 @@ $BODY$
 ALTER FUNCTION set_stations(character varying, character varying, character varying, character varying, boolean, boolean, boolean, character varying, boolean, boolean, character varying, character varying, integer, character varying)
   OWNER TO postgres;
 
-    ';
 
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_provider(p_code character varying, p_description character varying, p_address character varying, p_provider_id character varying, p_email character varying, p_phone character varying, p_contact character varying, p_country character varying, p_province character varying, p_city character varying, p_town character varying, p_credit_days integer, p_credit_limit double precision, p_provider_type character varying, p_status character varying, p_domiciled integer, p_percent_tax_retention double precision, p_percent_municipal_retention double precision, p_retention_tax_agent boolean, p_retention_municipal_agent boolean, p_retention_islr_agent boolean, p_perception_igtf_agent boolean, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -386,8 +377,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_provider(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer, double precision, character varying, character varying, integer, double precision, double precision, boolean, boolean, boolean, boolean, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_seller(p_code character varying, p_name character varying, p_status character varying, p_percent_sales double precision, p_percent_receivable double precision, p_inkeeper boolean, p_user_code character varying, p_percent_gerencial_debit_note double precision, p_percent_gerencial_credit_note double precision, p_percent_returned_check double precision, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -411,7 +401,8 @@ $BODY$begin
 			if(p_status='02')then
 				update clients
 				set 
-				seller='00'
+				seller='00',
+				last_update=NOW()
 				where seller = p_code;
 			end if;	
 			
@@ -430,8 +421,7 @@ $BODY$
   COST 100;
 ALTER FUNCTION set_seller(character varying, character varying, character varying, double precision, double precision, boolean, character varying, double precision, double precision, double precision, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_citys(p_code character varying, p_name character varying, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -459,8 +449,7 @@ $BODY$
 ALTER FUNCTION set_citys(character varying, character varying, character varying)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_provinces(p_code character varying, p_name character varying, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -488,8 +477,7 @@ $BODY$
 ALTER FUNCTION set_provinces(character varying, character varying, character varying)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_clients(p_code character varying, p_description character varying, p_address character varying, p_client_id character varying, p_email character varying, p_phone character varying, p_contact character varying, p_country character varying, p_province character varying, p_city character varying, p_town character varying, p_area_sales character varying, p_seller character varying, p_client_group character varying, p_credit_days integer, p_credit_limit double precision, p_discount double precision, p_client_type character varying, p_sale_price integer, p_status character varying, p_name_fiscal integer, p_generic_client boolean, p_client_classification character varying, p_cond_property_type character varying, p_cond_floor character varying, p_cond_aliquot double precision, p_cond_surface double precision, p_allow_expired_balance boolean, p_retention_tax_agent boolean, p_retention_municipal_agent boolean, p_retention_islr_agent boolean, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -609,8 +597,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_clients(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer, double precision, double precision, character varying, integer, character varying, integer, boolean, character varying, character varying, character varying, double precision, double precision, boolean, boolean, boolean, boolean, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_taxes(p_code character varying, p_description character varying, p_aliquot double precision, p_short_description character varying, p_type integer, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -642,8 +629,7 @@ $BODY$
   COST 100;
 ALTER FUNCTION set_taxes(character varying, character varying, double precision, character varying, integer, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_department(p_code character varying, p_name character varying, p_father_department character varying, p_percent_maximum_price double precision, p_percent_offer_price double precision, p_percent_higher_price double precision, p_percent_minimum_price double precision, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -692,8 +678,7 @@ $BODY$
 ALTER FUNCTION set_department(character varying, character varying, character varying, double precision, double precision, double precision, double precision, character varying)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_technician(p_code character varying, p_name character varying, p_status character varying, p_percent_commission_maximum_price double precision, p_percent_commission_offer_price double precision, p_percent_commission_higher_price double precision, p_percent_commission_minimum_price double precision, p_percent_commission_variable_price double precision, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -727,8 +712,7 @@ $BODY$
   COST 100;
 ALTER FUNCTION set_technician(character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_product(p_code character varying, p_description character varying, p_short_name character varying, p_mark character varying, p_model character varying, p_referenc character varying, p_department character varying, p_days_warranty integer, p_sale_tax character varying, p_buy_tax character varying, p_rounding_type integer, p_costing_type integer, p_discount double precision, p_max_discount double precision, p_minimal_sale double precision, p_maximal_sale double precision, p_status character varying, p_origin character varying, p_take_department_utility boolean, p_allow_decimal boolean, p_edit_name boolean, p_sale_price integer, p_product_type character varying, p_technician character varying, p_request_technician boolean, p_serialized boolean, p_request_details boolean, p_request_amount boolean, p_coin character varying, p_allow_negative_stock boolean, p_use_scale boolean, p_add_unit_description boolean, p_use_lots boolean, p_lots_order integer, p_minimal_stock double precision, p_notify_minimal_stock boolean, p_size character varying, p_color character varying, p_extract_net_from_unit_cost_plus_tax boolean, p_extract_net_from_unit_price_plus_tax boolean, p_maximum_stock double precision, p_action character varying)
   RETURNS void AS
 $BODY$begin
@@ -884,8 +868,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_product(character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer, character varying, character varying, integer, integer, double precision, double precision, double precision, double precision, character varying, character varying, boolean, boolean, boolean, integer, character varying, character varying, boolean, boolean, boolean, boolean, character varying, boolean, boolean, boolean, boolean, integer, double precision, boolean, character varying, character varying, boolean, boolean, double precision, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_products_lots(INOUT p_correlative integer, IN p_product_code character varying, IN p_lot_number character varying, IN p_entry_date date, IN p_entry_module character varying, IN p_entry_correlative integer, IN p_entry_amount double precision, IN p_expire boolean, IN p_expire_date date, IN p_apply_prices boolean, IN p_elaboration_date date)
   RETURNS integer AS
 $BODY$begin	 
@@ -898,9 +881,9 @@ $BODY$begin
 		expire = p_expire,
 		expire_date = p_expire_date,
 		apply_prices = p_apply_prices,
-		elaboration_date = p_elaboration_date
-		where correlative = p_correlative,
-        last_update=NOW();
+		elaboration_date = p_elaboration_date,
+		last_update=NOW()
+		where correlative = p_correlative;
 		
 	else
 
@@ -941,8 +924,7 @@ end$BODY$
 ALTER FUNCTION set_products_lots(integer, character varying, character varying, date, character varying, integer, double precision, boolean, date, boolean, date)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_products_units(p_correlative integer, p_unit character varying, p_producto_codigo character varying, p_main_unit boolean, p_conversion_factor double precision, p_unit_type integer, p_show_in_screen boolean, p_is_for_buy boolean, p_is_for_sale boolean, p_unitary_cost double precision, p_calculated_cost double precision, p_average_cost double precision, p_perc_waste_cost double precision, p_perc_handling_cost double precision, p_perc_operating_cost double precision, p_perc_additional_cost double precision, p_maximum_price double precision, p_offer_price double precision, p_higher_price double precision, p_minimum_price double precision, p_perc_maximum_price double precision, p_perc_offer_price double precision, p_perc_higher_price double precision, p_perc_minimum_price double precision, p_perc_freight_cost double precision, p_perc_discount_provider double precision, p_lenght double precision, p_height double precision, p_width double precision, p_weight double precision, p_capacitance double precision)
   RETURNS void AS
 $BODY$begin
@@ -1059,8 +1041,7 @@ end$BODY$
 ALTER FUNCTION set_products_units(integer, character varying, character varying, boolean, double precision, integer, boolean, boolean, boolean, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_products_stock(p_product_code character varying, p_store character varying, p_locations character varying, p_amount double precision, p_unit_type integer, p_factor_conversion double precision, p_factor double precision, p_type_amount character varying)
   RETURNS void AS
 $BODY$declare v_stock double precision;
@@ -1120,8 +1101,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_products_stock(character varying, character varying, character varying, double precision, integer, double precision, double precision, character varying)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_products_provider(p_product_code character varying, p_provider_code character varying, p_unitary_cost double precision, p_document_type character varying, p_document_no character varying, p_emission_date date, p_register_date date, p_coin_code character varying, p_unit integer, p_related_line integer, p_amount double precision)
   RETURNS void AS
 $BODY$begin
@@ -1161,8 +1141,7 @@ $BODY$
 ALTER FUNCTION set_products_provider(character varying, character varying, double precision, character varying, character varying, date, date, character varying, integer, integer, double precision)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_receivable(INOUT p_correlative integer, IN p_operation_type character varying, IN p_document_no character varying, IN p_control_no character varying, IN p_emission_date date, IN p_client_code character varying, IN p_client_name character varying, IN p_client_id character varying, IN p_client_address character varying, IN p_client_phone character varying, IN p_client_name_fiscal integer, IN p_credit_days integer, IN p_expiration_date date, IN p_description character varying, IN p_comments character varying, IN p_seller character varying, IN p_user_code character varying, IN p_station character varying, IN p_total_net double precision, IN p_total_tax double precision, IN p_total double precision, IN p_credit double precision, IN p_debit double precision, IN p_balance double precision, IN p_fiscal_impresion boolean, IN p_fiscal_printer_serial character varying, IN p_fiscal_printer_date timestamp without time zone, IN p_fiscal_printer_document character varying, IN p_fiscal_printer_z character varying, IN p_coin_code character varying, IN p_indexing_factor double precision, IN p_indexing boolean, IN p_indexing_coin character varying, IN p_indexing_correlative_origin integer, IN p_indexing_module_origin character varying, IN p_total_exempt double precision, IN p_base_igtf double precision, IN p_percent_igtf double precision, IN p_igtf double precision)
   RETURNS integer AS
 $BODY$begin
@@ -1298,8 +1277,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_receivable(integer, character varying, character varying, character varying, date, character varying, character varying, character varying, character varying, character varying, integer, integer, date, character varying, character varying, character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, double precision, boolean, character varying, timestamp without time zone, character varying, character varying, character varying, double precision, boolean, character varying, integer, character varying, double precision, double precision, double precision, double precision)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_receivable_details(p_main_correlative integer, p_correlative_related integer, p_balance_applied double precision, p_retention_tax double precision, p_retention_islr double precision, p_retention_municipal double precision, p_module_related character varying, p_credit_note double precision, p_percent_discount double precision, p_discount double precision)
   RETURNS void AS
 $BODY$begin
@@ -1335,8 +1313,7 @@ $BODY$
 ALTER FUNCTION set_receivable_details(integer, integer, double precision, double precision, double precision, double precision, character varying, double precision, double precision, double precision)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_receivable_coins(p_main_correlative integer, p_coin_code character varying, p_factor_type integer, p_factor_aliquot double precision)
   RETURNS void AS
 $BODY$begin
@@ -1363,8 +1340,7 @@ end
 ALTER FUNCTION set_receivable_coins(integer, character varying, integer, double precision)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_receivable_taxes(IN p_main_correlative integer, IN p_taxe_code character varying, IN p_aliquot double precision, IN p_taxable double precision, IN p_tax double precision, IN p_tax_type integer, INOUT p_line integer)
   RETURNS integer AS
 $BODY$begin
@@ -1394,8 +1370,7 @@ end$BODY$
 ALTER FUNCTION set_receivable_taxes(integer, character varying, double precision, double precision, double precision, integer, integer)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_sales_operation(INOUT p_correlative integer, IN p_operation_type character varying, IN p_document_no character varying, IN p_control_no character varying, IN p_emission_date date, IN p_client_code character varying, IN p_client_name character varying, IN p_client_id character varying, IN p_client_address character varying, IN p_client_phone character varying, IN p_client_name_fiscal integer, IN p_seller character varying, IN p_credit_days integer, IN p_expiration_date date, IN p_wait boolean, IN p_description character varying, IN p_store character varying, IN p_locations character varying, IN p_user_code character varying, IN p_station character varying, IN p_percent_discount double precision, IN p_discount double precision, IN p_percent_freight double precision, IN p_freight double precision, IN p_credit double precision, IN p_cash double precision, IN p_type_price integer, IN p_operation_comments character varying, IN p_pending boolean, IN p_freight_tax character varying, IN p_freight_aliquot double precision, IN p_total_amount double precision, IN p_total_net_cost double precision, IN p_total_tax_cost double precision, IN p_total_cost double precision, IN p_total_net_details double precision, IN p_total_tax_details double precision, IN p_total_details double precision, IN p_total_net double precision, IN p_total_tax double precision, IN p_total double precision, IN p_total_retention_tax double precision, IN p_total_retention_municipal double precision, IN p_total_retention_islr double precision, IN p_total_operation double precision, IN p_retention_tax_prorration double precision, IN p_retention_islr_prorration double precision, IN p_retention_municipal_prorration double precision, IN p_fiscal_impresion boolean, IN p_fiscal_printer_serial character varying, IN p_fiscal_printer_date timestamp without time zone, IN p_fiscal_printer_document character varying, IN p_fiscal_printer_z character varying, IN p_coin_code character varying, IN p_sale_point boolean, IN p_address_send character varying, IN p_contact_send character varying, IN p_phone_send character varying, IN p_free_tax boolean, IN p_total_weight double precision, IN p_restorant boolean, IN p_total_exempt double precision, IN p_base_igtf double precision, IN p_percent_igtf double precision, IN p_igtf double precision, IN p_shopping_order_document_no character varying, IN p_shopping_order_date date)
   RETURNS integer AS
 $BODY$declare v_document_no_internal character varying;
@@ -1590,8 +1565,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_sales_operation(integer, character varying, character varying, character varying, date, character varying, character varying, character varying, character varying, character varying, integer, character varying, integer, date, boolean, character varying, character varying, character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, double precision, integer, character varying, boolean, character varying, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, boolean, character varying, timestamp without time zone, character varying, character varying, character varying, boolean, character varying, character varying, character varying, boolean, double precision, boolean, double precision, double precision, double precision, double precision, character varying, date)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_sales_operation_coins(p_main_correlative integer, p_coin_code character varying, p_factor_type integer, p_buy_aliquot double precision, p_sales_aliquot double precision, p_total_net_details double precision, p_total_tax_details double precision, p_total_details double precision, p_discount double precision, p_freight double precision, p_total_net double precision, p_total_tax double precision, p_total double precision, p_credit double precision, p_cash double precision, p_total_net_cost double precision, p_total_tax_cost double precision, p_total_cost double precision, p_total_operation double precision, p_total_retention_tax double precision, p_total_retention_municipal double precision, p_total_retention_islr double precision, p_retention_tax_prorration double precision, p_retention_islr_prorration double precision, p_retention_municipal_prorration double precision, p_total_exempt double precision)
   RETURNS void AS
 $BODY$begin
@@ -1659,8 +1633,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_sales_operation_coins(integer, character varying, integer, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_sales_operation_details(IN p_main_correlative integer, INOUT p_line integer, IN p_code_product character varying, IN p_description_product character varying, IN p_referenc character varying, IN p_mark character varying, IN p_model character varying, IN p_amount double precision, IN p_store character varying, IN p_locations character varying, IN p_unit integer, IN p_conversion_factor double precision, IN p_unit_type integer, IN p_unitary_cost double precision, IN p_sale_tax character varying, IN p_sale_aliquot double precision, IN p_buy_tax character varying, IN p_buy_aliquot double precision, IN p_price double precision, IN p_type_price integer, IN p_percent_discount double precision, IN p_discount double precision, IN p_product_type character varying, IN p_total_net_cost double precision, IN p_total_tax_cost double precision, IN p_total_cost double precision, IN p_total_net_gross double precision, IN p_total_tax_gross double precision, IN p_total_gross double precision, IN p_total_net double precision, IN p_total_tax double precision, IN p_total double precision, IN p_description character varying, IN p_technician character varying, IN p_coin_code character varying, IN p_total_weight double precision)
   RETURNS integer AS
 $BODY$begin
@@ -1749,8 +1722,7 @@ end$BODY$
 ALTER FUNCTION set_sales_operation_details(integer, integer, character varying, character varying, character varying, character varying, character varying, double precision, character varying, character varying, integer, double precision, integer, double precision, character varying, double precision, character varying, double precision, double precision, integer, double precision, double precision, character varying, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, character varying, character varying, character varying, double precision)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_sales_operation_taxes(IN p_main_correlative integer, IN p_taxe_code character varying, IN p_aliquot double precision, IN p_taxable double precision, IN p_tax double precision, IN p_tax_type integer, INOUT p_line integer)
   RETURNS integer AS
 $BODY$declare v_sales_operation sales_operation;
@@ -1785,8 +1757,7 @@ end$BODY$
 ALTER FUNCTION set_sales_operation_taxes(integer, character varying, double precision, double precision, double precision, integer, integer)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_debtstopay(INOUT p_correlative integer, IN p_operation_type character varying, IN p_document_no character varying, IN p_control_no character varying, IN p_emission_date date, IN p_reception_date date, IN p_provider_code character varying, IN p_provider_name character varying, IN p_provider_id character varying, IN p_provider_address character varying, IN p_provider_phone character varying, IN p_credit_days integer, IN p_expiration_date date, IN p_description character varying, IN p_comments character varying, IN p_user_code character varying, IN p_station character varying, IN p_total_net double precision, IN p_total_tax double precision, IN p_total double precision, IN p_credit double precision, IN p_debit double precision, IN p_balance double precision, IN p_coin_code character varying, IN p_indexing_factor double precision, IN p_indexing boolean, IN p_indexing_coin character varying, IN p_indexing_correlative_origin integer, IN p_indexing_module_origin character varying, IN p_total_exempt double precision, IN p_base_igtf double precision, IN p_percent_igtf double precision, IN p_igtf double precision)
   RETURNS integer AS
 $BODY$begin
@@ -1895,8 +1866,7 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_debtstopay(integer, character varying, character varying, character varying, date, date, character varying, character varying, character varying, character varying, character varying, integer, date, character varying, character varying, character varying, character varying, double precision, double precision, double precision, double precision, double precision, double precision, character varying, double precision, boolean, character varying, integer, character varying, double precision, double precision, double precision, double precision)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_debtstopay_coins(p_main_correlative integer, p_coin_code character varying, p_factor_type integer, p_factor_aliquot double precision)
   RETURNS void AS
 $BODY$begin
@@ -1922,8 +1892,7 @@ end
   COST 100;
 ALTER FUNCTION set_debtstopay_coins(integer, character varying, integer, double precision)
   OWNER TO postgres;
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_debtstopay_details(p_main_correlative integer, p_correlative_related integer, p_balance_applied double precision, p_retention_tax double precision, p_retention_islr double precision, p_retention_municipal double precision, p_module_related character varying, p_credit_note double precision, p_percent_discount double precision, p_discount double precision)
   RETURNS void AS
 $BODY$begin
@@ -1959,8 +1928,7 @@ $BODY$
 ALTER FUNCTION set_debtstopay_details(integer, integer, double precision, double precision, double precision, double precision, character varying, double precision, double precision, double precision)
   OWNER TO postgres;
 
-    ';
-    EXECUTE '
+
 CREATE OR REPLACE FUNCTION set_debtstopay_taxes(IN p_main_correlative integer, IN p_taxe_code character varying, IN p_aliquot double precision, IN p_taxable double precision, IN p_tax double precision, IN p_tax_type integer, INOUT p_line integer)
   RETURNS integer AS
 $BODY$begin
@@ -1989,24 +1957,26 @@ end$BODY$
   COST 100;
 ALTER FUNCTION set_debtstopay_taxes(integer, character varying, double precision, double precision, double precision, integer, integer)
   OWNER TO postgres;
-    ';
-END $$;
 
 """
 
-
-try:
-	cursor_a.execute(query)
-	conn_a.commit()
-	cursor_b.execute(query)
-	conn_b.commit()  # Asegúrate de hacer commit de la transacción
-	print('-----------------Insersion de la funcion realizada con exito-----------------')  
-except psycopg2.Error as e:
-    print(f"Error: {e}")
-finally:
-    cursor_a.close()
-    conn_a.close()
-    cursor_b.close()
-    conn_b.close()
+def insert_fun():
+	try:
+		conn_a = db1()
+		cursor_a = conn_a.cursor()
+		conn_b = db2()
+		cursor_b = conn_b.cursor()
+		cursor_a.execute(query)
+		conn_a.commit()
+		cursor_b.execute(query)
+		conn_b.commit()  # Asegúrate de hacer commit de la transacción
+		print('-----------------Insersion de las funciones realizada con exito-----------------')  
+	except psycopg2.Error as e:
+		print(f"Error: {e}")
+	finally:
+		cursor_a.close()
+		conn_a.close()
+		cursor_b.close()
+		conn_b.close()
 
 

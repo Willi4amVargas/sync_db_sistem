@@ -1,14 +1,10 @@
-from datetime import datetime as dt
 import psycopg2
-from sync_final.db2 import db2 as db2
+from sync_final.db1 import database1 as db1
+from sync_final.db2 import database2 as db2
 
 
-conn_b = db2()
-cursor_b = conn_b.cursor()
 
-try:
-
-    cursor_b.execute("""
+query="""
 DO $$
     DECLARE
         v_table_name text;
@@ -23,6 +19,7 @@ DO $$
             AND table_type = 'BASE TABLE'
             AND table_name IN (
                                 'coin',
+                                'coin_history',
                                 'units',
                                 'store',
                                 'users',
@@ -52,7 +49,7 @@ DO $$
                                 'debtstopay_coins',
                                 'debtstopay_details',
                                 'debtstopay_taxes'                     
-                     )  -- Lista de tablas
+                    )  -- Lista de tablas
         LOOP
             -- Verifica si la columna ya existe
             IF NOT EXISTS (
@@ -70,15 +67,24 @@ DO $$
             END IF;
         END LOOP;
     END $$;
-    """)
-    conn_b.commit()  # Asegúrate de hacer commit de la transacción
-    print('-----------------Insersion de la/las columna realizada con exito-----------------')
-    
-except psycopg2.Error as e:
-    print(f"Error: {e}")
-finally:
-    cursor_b.close()
-    conn_b.close()
+"""
+def insert_columns():
+    try:
+        conn_a = db1()
+        cursor_a = conn_a.cursor()
+        conn_b = db2()
+        cursor_b = conn_b.cursor()
+        cursor_a.execute(query)
+        conn_a.commit()
+        cursor_b.execute(query)
+        conn_b.commit()  # Asegúrate de hacer commit de la transacción
+        print('-----------------Insersion de la/las columna realizada con exito-----------------')
+        
+    except psycopg2.Error as e:
+        print(f"Error: {e}")
+    finally:
+        cursor_b.close()
+        conn_b.close()
 
 
 
