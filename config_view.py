@@ -196,8 +196,10 @@ def gen_config(event):
     if os.path.exists(config_path):
         config.read(config_path)
     
-
-
+    config['client'] = {
+        'serial':  cryptocode.encrypt(str(data['serial']),key),
+        'cliente':  cryptocode.encrypt(str(data['cliente']),key),
+    }
 
     config['DB1_SYNC'] = {
         'host':  cryptocode.encrypt(str(data['server1'].value),key),
