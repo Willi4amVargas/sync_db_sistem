@@ -198,6 +198,7 @@ async def sync_table(table_name):
                 except Error:
                     conn_a.rollback()
             #pbar.update(1)
+        print(table_name)
         
 
     except psycopg2.Error as e:
@@ -234,7 +235,6 @@ async def main_sync():
 
     # table1=[
     #     'products_lots']   
-            
     tables=[
         ['coin',
         'coin_history',
@@ -276,7 +276,6 @@ async def main_sync():
         ]
     # for table in table1:
     #     sync_table(table)
-    
     while True:
         if check_license():
             await sync_tables_in_parallel(tables)
