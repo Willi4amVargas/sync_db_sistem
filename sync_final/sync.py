@@ -4,6 +4,34 @@ import asyncio
 import time
 from sync_final.db1 import database1 as db1
 from sync_final.db2 import database2 as db2
+from license import program_is_usable
+import tkinter as tk
+from tkinter import messagebox, Label
+
+
+def check_license():
+    # Verifica el estado de la licencia
+    status = program_is_usable()
+    if status == 1:
+        return False
+    elif status == 2:
+        return True
+    elif status == 3:
+        return False
+
+
+def show_error(message):
+    root = tk.Tk()
+    root.withdraw()  # Oculta la ventana principal de Tkinter
+    messagebox.showerror("Error", message)
+    root.destroy()
+    
+def show_running_message():
+    root = tk.Tk()
+    root.title("Estado del Programa")
+    Label(root, text="El programa está corriendo...").pack(pady=100, padx=100)
+    root.after(5000, root.destroy)  # Cierra la ventana después de 5 segundos
+    root.mainloop()
 
 
 async def sync_table(table_name):
@@ -33,7 +61,7 @@ async def sync_table(table_name):
         cursor_a.execute(getColumns)
         columns = [col[0] for col in cursor_a.fetchall()]
         
-        tables_skip_three_columns = ['products_stock', 'receivable_details', 'debtstopay_detail']
+        tables_skip_three_columns = ['products_stock','receivable_details', 'debtstopay_details']
         tables_skip_two_columns = [
             'receivable_coins', 'receivable_taxes', 'sales_operation_coins',
             'sales_operation_details', 'sales_operation_taxes', 
@@ -54,7 +82,6 @@ async def sync_table(table_name):
         
         # Iterar sobre todas las claves primarias en ambas bases de datos
         all_keys = set(dict_a.keys()).union(dict_b.keys())
-        print(all_keys)
         
         for key in all_keys:
             row_a = dict_a.get(key)
@@ -72,7 +99,7 @@ async def sync_table(table_name):
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                             params= row_b[1:] + (row_b[0],)
                             # print(params)
-                            # print(query,params)
+                            # print(query,params,table_name)
                             #cursor_a.execute(query,params)
                             cursor_a.execute(query, params)
                             conn_a.commit()
@@ -80,7 +107,7 @@ async def sync_table(table_name):
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s"""
                             params= row_b[2:] + (row_b[0],) + (row_b[1],)
                             # print(params)
-                            # print(query,params)
+                            # print(query,params,table_name)
                             #cursor_a.execute(query,params)
                             cursor_a.execute(query, params)
                             conn_a.commit()
@@ -88,7 +115,7 @@ async def sync_table(table_name):
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
                             params= row_b[3:] + (row_b[0],) + (row_b[1],) + (row_b[2],)
                             # print(params)
-                            # print(query,params)
+                            # print(query,params,table_name)
                             #cursor_a.execute(query,params)
                             cursor_a.execute(query, params)
                             conn_a.commit()
@@ -99,7 +126,7 @@ async def sync_table(table_name):
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                             params= row_a[1:] + (row_a[0],)
                             # print(params)
-                            # print(query,params)
+                            # print(query,params,table_name)
                             #cursor_b.execute(query,params)
                             cursor_b.execute(query, params)
                             conn_b.commit()
@@ -107,7 +134,7 @@ async def sync_table(table_name):
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s"""
                             params= row_a[2:] + (row_a[0],) + (row_a[1],)
                             # print(params)
-                            # print(query,params)
+                            # print(query,params,table_name)
                             #cursor_b.execute(query,params)
                             cursor_b.execute(query, params)
                             conn_b.commit()
@@ -115,7 +142,7 @@ async def sync_table(table_name):
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
                             params= row_a[3:] + (row_a[0],) + (row_a[1],) + (row_a[2],)
                             # print(params)
-                            # print(query,params)
+                            # print(query,params,table_name)
                             #cursor_b.execute(query,params)
                             cursor_b.execute(query, params)
                             conn_b.commit()
@@ -124,7 +151,7 @@ async def sync_table(table_name):
                 #     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
                 #     params=row_b[1:] + (row_b[0],)
                 #     print(params)
-                #     print(query,params)
+                #   print(query,params,table_name)
                 #     cursor_a.execute(query,params)
                 #     conn_a.commit()
                 # elif last_update_b is None:
@@ -132,7 +159,7 @@ async def sync_table(table_name):
                 #     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s """
                 #     params=row_a[1:] + (row_a[0],)
                 #     print(params)
-                #     print(query,params)
+                #   print(query,params,table_name)
                 #     cursor_b.execute(query,params)
                 #     conn_b.commit()
                     
@@ -153,6 +180,7 @@ async def sync_table(table_name):
                 cursor_a.execute(query,row_b)
                 conn_a.commit()
             #pbar.update(1)
+        print(f'Tabla {table_name} completada')
         
 
     except psycopg2.Error as e:
@@ -187,41 +215,8 @@ async def sync_tables_in_parallel(tables):
 async def main_sync():
     # Llamada a la función
 
-        # 'coin',
-        # 'coin_history',
-        # 'units',
-        # 'store',
-        # 'users',
-        # 'stations',
-        # 'provider',
-        # 'locations',
-        # 'sellers',
-        # 'citys',
-        # 'provinces',
-        # 'clients',
-        # 'taxes',
-        # 'tax_types',
-        # 'department',
-        # 'technician',
-        # 'status',
-        # 'origin',
-        # 'products',
-        # 'products_lots',
-        # 'products_units',
-        # 'products_stock',
-        # 'products_provider',
-        # 'receivable',
-        # 'receivable_details',
-        # 'receivable_coins',
-        # 'receivable_taxes',
-        # 'sales_operation',
-        # 'sales_operation_coins',
-        # 'sales_operation_details',
-        # 'sales_operation_taxes',
-        # 'debtstopay',
-        # 'debtstopay_coins',
-        # 'debtstopay_details',
-        # 'debtstopay_taxes'   
+    # table1=[
+    #     'products_lots']   
             
     tables=[
         ['coin',
@@ -262,10 +257,19 @@ async def main_sync():
         'debtstopay_details',
         'debtstopay_taxes']
         ]
+    # for table in table1:
+    #     sync_table(table)
     
     while True:
-        await sync_tables_in_parallel(tables)
-        #print('Sincronizacion completa, iniciando otra vez...')
-        time.sleep(1000)
+        if check_license():
+            show_running_message()
+            await sync_tables_in_parallel(tables)
+        else:
+            show_error("Licencia caducada o programa deshabilitado")
+    
+    # while True:
+        
+    #     #print('Sincronizacion completa, iniciando otra vez...')
+    #     time.sleep(2)
 
 
