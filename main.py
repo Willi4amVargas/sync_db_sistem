@@ -11,6 +11,24 @@ import os
 import platform
 
 
+def show_running_message():
+    root = tk.Tk()
+    root.title("Estado del Programa")
+    label = Label(root, text="El programa está corriendo...")
+    label.pack(pady=30, padx=60)
+    root.update_idletasks()
+    window_width = root.winfo_reqwidth()
+    window_height = root.winfo_reqheight()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    position_x = (screen_width // 2) - (window_width // 2)
+    position_y = (screen_height // 2) - (window_height // 2)
+    root.geometry(f'{window_width}x{window_height}+{position_x}+{position_y}')
+
+    root.after(2000, root.destroy)
+    root.mainloop()
+    
+
 def configure_program():
     # Ejecuta la configuración del programa
     ft.app(target=main_page)
@@ -35,6 +53,7 @@ def main():
             config.set("fit", "validate", "0")
 
         if config.get("fit", "validate") == '1':
+            show_running_message()
             asyncio.run(main_sync())
         else:
             configure_program()

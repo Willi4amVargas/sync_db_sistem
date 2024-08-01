@@ -6,7 +6,8 @@ from sync_final.db1 import database1 as db1
 from sync_final.db2 import database2 as db2
 from license import program_is_usable
 import tkinter as tk
-from tkinter import messagebox, Label
+from tkinter import messagebox
+from psycopg2 import Error
 
 
 def check_license():
@@ -25,13 +26,6 @@ def show_error(message):
     root.withdraw()  # Oculta la ventana principal de Tkinter
     messagebox.showerror("Error", message)
     root.destroy()
-    
-def show_running_message():
-    root = tk.Tk()
-    root.title("Estado del Programa")
-    Label(root, text="El programa está corriendo...").pack(pady=100, padx=100)
-    root.after(5000, root.destroy)  # Cierra la ventana después de 5 segundos
-    root.mainloop()
 
 
 async def sync_table(table_name):
@@ -101,24 +95,33 @@ async def sync_table(table_name):
                             # print(params)
                             # print(query,params,table_name)
                             #cursor_a.execute(query,params)
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
+                            try:
+                                cursor_a.execute(query, params)
+                                conn_a.commit()
+                            except Error:
+                                conn_a.rollback()
                         elif case_pk==1:
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s"""
                             params= row_b[2:] + (row_b[0],) + (row_b[1],)
                             # print(params)
                             # print(query,params,table_name)
                             #cursor_a.execute(query,params)
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
+                            try:
+                                cursor_a.execute(query, params)
+                                conn_a.commit()
+                            except Error:
+                                conn_a.rollback()
                         elif case_pk==0:
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
                             params= row_b[3:] + (row_b[0],) + (row_b[1],) + (row_b[2],)
                             # print(params)
                             # print(query,params,table_name)
                             #cursor_a.execute(query,params)
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
+                            try:
+                                cursor_a.execute(query, params)
+                                conn_a.commit()
+                            except Error:
+                                conn_a.rollback()
                         
                     elif last_update_a > last_update_b:
                         # La fila en A es más reciente, actualizar B
@@ -128,24 +131,33 @@ async def sync_table(table_name):
                             # print(params)
                             # print(query,params,table_name)
                             #cursor_b.execute(query,params)
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
+                            try:
+                                cursor_b.execute(query, params)
+                                conn_b.commit()
+                            except Error:
+                                conn_b.rollback()
                         elif case_pk==1:
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s"""
                             params= row_a[2:] + (row_a[0],) + (row_a[1],)
                             # print(params)
                             # print(query,params,table_name)
                             #cursor_b.execute(query,params)
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
+                            try:
+                                cursor_b.execute(query, params)
+                                conn_b.commit()
+                            except Error:
+                                conn_b.rollback()
                         elif case_pk==0:
                             query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
                             params= row_a[3:] + (row_a[0],) + (row_a[1],) + (row_a[2],)
                             # print(params)
                             # print(query,params,table_name)
                             #cursor_b.execute(query,params)
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
+                            try:
+                                cursor_b.execute(query, params)
+                                conn_b.commit()
+                            except Error:
+                                conn_b.rollback()
                 # elif last_update_a is None:
                 #     # La fila en B tiene fecha, pero A no, actualizar A
                 #     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
@@ -169,18 +181,23 @@ async def sync_table(table_name):
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
                 # print(row_a)
                 # print(query,row_a)
-                cursor_b.execute(query,row_a)
-                conn_b.commit()
+                try:
+                    cursor_b.execute(query,row_a)
+                    conn_b.commit()
+                except Error:
+                    conn_b.rollback()
             elif row_b and not row_a:
                 # La fila está en B pero no en A, insertar en A
                 placeholders = ", ".join(["%s"] * len(row_b))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
                 # print(row_b)
                 # print(query,row_b)
-                cursor_a.execute(query,row_b)
-                conn_a.commit()
+                try:
+                    cursor_a.execute(query,row_b)
+                    conn_a.commit()
+                except Error:
+                    conn_a.rollback()
             #pbar.update(1)
-        print(f'Tabla {table_name} completada')
         
 
     except psycopg2.Error as e:
@@ -262,8 +279,8 @@ async def main_sync():
     
     while True:
         if check_license():
-            show_running_message()
             await sync_tables_in_parallel(tables)
+            time.sleep(1)
         else:
             show_error("Licencia caducada o programa deshabilitado")
     
