@@ -4,7 +4,7 @@ import cryptocode
 import os
 
 def main_page(page: ft.Page):
-    page.title = "Configuración Nissi Farma"
+    page.title = "Configuración Nissi Sync"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.START
 

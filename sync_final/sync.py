@@ -26,15 +26,35 @@ async def sync_table(table_name):
         # Convertir listas de filas a diccionarios para un acceso más fácil
         dict_a = {row[0]: row for row in rows_a}
         dict_b = {row[0]: row for row in rows_b}
+        #print(dict_a)
         
         # Obtener columnas de la tabla
         getColumns=f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}' ORDER BY ordinal_position;"
         cursor_a.execute(getColumns)
         columns = [col[0] for col in cursor_a.fetchall()]
-        update_columns = ", ".join([f"{col} = %s" for col in columns[1:]]) # Saltar la columna de clave primaria
+        
+        tables_skip_three_columns = ['products_stock', 'receivable_details', 'debtstopay_detail']
+        tables_skip_two_columns = [
+            'receivable_coins', 'receivable_taxes', 'sales_operation_coins',
+            'sales_operation_details', 'sales_operation_taxes', 
+            'debtstopay_coins', 'debtstopay_taxes'
+        ]
+        
+        if table_name in tables_skip_three_columns:
+            update_columns = ", ".join([f"{col} = %s" for col in columns[3:]]) # saltar las tres primeras columnas clave primarias
+            case_pk=0
+            
+        elif table_name in tables_skip_two_columns:
+            update_columns = ", ".join([f"{col} = %s" for col in columns[2:]]) # Saltar las dos primeras columnas clave primaria
+            case_pk=1
+            
+        else:
+            update_columns = ", ".join([f"{col} = %s" for col in columns[1:]]) # Saltar la columna de clave primaria
+            case_pk=2
         
         # Iterar sobre todas las claves primarias en ambas bases de datos
         all_keys = set(dict_a.keys()).union(dict_b.keys())
+        print(all_keys)
         
         for key in all_keys:
             row_a = dict_a.get(key)
@@ -48,51 +68,92 @@ async def sync_table(table_name):
                 if last_update_a is not None and last_update_b is not None:
                     if last_update_a < last_update_b:
                         # La fila en B es más reciente, actualizar A
-                        query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
-                        params= row_b[1:] + (row_b[0],)
-                        #print(query,params)
-                        #cursor_a.execute(query,params)
-                        cursor_a.execute(query, params)
-                        conn_a.commit()
+                        if case_pk==2:
+                            query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
+                            params= row_b[1:] + (row_b[0],)
+                            # print(params)
+                            # print(query,params)
+                            #cursor_a.execute(query,params)
+                            cursor_a.execute(query, params)
+                            conn_a.commit()
+                        elif case_pk==1:
+                            query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                            params= row_b[2:] + (row_b[0],) + (row_b[1],)
+                            # print(params)
+                            # print(query,params)
+                            #cursor_a.execute(query,params)
+                            cursor_a.execute(query, params)
+                            conn_a.commit()
+                        elif case_pk==0:
+                            query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                            params= row_b[3:] + (row_b[0],) + (row_b[1],) + (row_b[2],)
+                            # print(params)
+                            # print(query,params)
+                            #cursor_a.execute(query,params)
+                            cursor_a.execute(query, params)
+                            conn_a.commit()
                         
                     elif last_update_a > last_update_b:
                         # La fila en A es más reciente, actualizar B
-                        query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
-                        params= row_a[1:] + (row_a[0],)
-                        #print(query,params)
-                        cursor_b.execute(query,params)
-                        conn_b.commit()
-                elif last_update_a is None:
-                    # La fila en B tiene fecha, pero A no, actualizar A
-                    query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
-                    params=row_b[1:] + (row_b[0],)
-                    #print(query,params)
-                    cursor_a.execute(query,params)
-                    conn_a.commit()
-                elif last_update_b is None:
-                    # La fila en A tiene fecha, pero B no, actualizar B
-                    query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s """
-                    params=row_a[1:] + (row_a[0],)
-                    #print(query,params)
-                    cursor_b.execute(query,params)
-                    conn_b.commit()
+                        if case_pk==2:
+                            query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
+                            params= row_a[1:] + (row_a[0],)
+                            # print(params)
+                            # print(query,params)
+                            #cursor_b.execute(query,params)
+                            cursor_b.execute(query, params)
+                            conn_b.commit()
+                        elif case_pk==1:
+                            query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                            params= row_a[2:] + (row_a[0],) + (row_a[1],)
+                            # print(params)
+                            # print(query,params)
+                            #cursor_b.execute(query,params)
+                            cursor_b.execute(query, params)
+                            conn_b.commit()
+                        elif case_pk==0:
+                            query=f"""UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                            params= row_a[3:] + (row_a[0],) + (row_a[1],) + (row_a[2],)
+                            # print(params)
+                            # print(query,params)
+                            #cursor_b.execute(query,params)
+                            cursor_b.execute(query, params)
+                            conn_b.commit()
+                # elif last_update_a is None:
+                #     # La fila en B tiene fecha, pero A no, actualizar A
+                #     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s"""
+                #     params=row_b[1:] + (row_b[0],)
+                #     print(params)
+                #     print(query,params)
+                #     cursor_a.execute(query,params)
+                #     conn_a.commit()
+                # elif last_update_b is None:
+                #     # La fila en A tiene fecha, pero B no, actualizar B
+                #     query=f""" UPDATE {table_name} SET {update_columns} WHERE {columns[0]} = %s """
+                #     params=row_a[1:] + (row_a[0],)
+                #     print(params)
+                #     print(query,params)
+                #     cursor_b.execute(query,params)
+                #     conn_b.commit()
                     
             elif row_a and not row_b:
                 # La fila está en A pero no en B, insertar en B
                 placeholders = ", ".join(["%s"] * len(row_a))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                #print(query,row_a)
+                # print(row_a)
+                # print(query,row_a)
                 cursor_b.execute(query,row_a)
                 conn_b.commit()
             elif row_b and not row_a:
                 # La fila está en B pero no en A, insertar en A
                 placeholders = ", ".join(["%s"] * len(row_b))
                 query=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                #print(query,row_b)
+                # print(row_b)
+                # print(query,row_b)
                 cursor_a.execute(query,row_b)
                 conn_a.commit()
             #pbar.update(1)
-        #print("Se actualizo la tabla ",table_name)
+        
 
     except psycopg2.Error as e:
         print(f"Error: {e}")
@@ -205,6 +266,6 @@ async def main_sync():
     while True:
         await sync_tables_in_parallel(tables)
         #print('Sincronizacion completa, iniciando otra vez...')
-        time.sleep(1)
+        time.sleep(1000)
 
 
