@@ -19,36 +19,7 @@ DO $$
             AND table_type = 'BASE TABLE'
             AND table_name IN (
                                 'coin',
-                                'coin_history',
-                                'units',
-                                'store',
-                                'users',
-                                'stations',
-                                'provider',
-                                'sellers',
-                                'citys',
-                                'provinces',
-                                'clients',
-                                'taxes',
-                                'department',
-                                'technician',
-                                'products',
-                                'products_lots',
-                                'products_units',
-                                'products_stock',
-                                'products_provider',
-                                'receivable',
-                                'receivable_details',
-                                'receivable_coins',
-                                'receivable_taxes',
-                                'sales_operation',
-                                'sales_operation_coins',
-                                'sales_operation_details',
-                                'sales_operation_taxes',
-                                'debtstopay',
-                                'debtstopay_coins',
-                                'debtstopay_details',
-                                'debtstopay_taxes'                     
+                                'coin_history'                     
                     )  -- Lista de tablas
         LOOP
             -- Verifica si la columna ya existe
@@ -85,6 +56,37 @@ def insert_columns():
     finally:
         cursor_b.close()
         conn_b.close()
+
+        # ,
+        #                         'units',
+        #                         'store',
+        #                         'users',
+        #                         'stations',
+        #                         'provider',
+        #                         'sellers',
+        #                         'citys',
+        #                         'provinces',
+        #                         'clients',
+        #                         'taxes',
+        #                         'department',
+        #                         'technician',
+        #                         'products',
+        #                         'products_lots',
+        #                         'products_units',
+        #                         'products_stock',
+        #                         'products_provider',
+        #                         'receivable',
+        #                         'receivable_details',
+        #                         'receivable_coins',
+        #                         'receivable_taxes',
+        #                         'sales_operation',
+        #                         'sales_operation_coins',
+        #                         'sales_operation_details',
+        #                         'sales_operation_taxes',
+        #                         'debtstopay',
+        #                         'debtstopay_coins',
+        #                         'debtstopay_details',
+        #                         'debtstopay_taxes'
 
 
 
