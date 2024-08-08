@@ -29,399 +29,398 @@ def show_error(message):
 
 
 async def sync_table(table_name):
-    try:
-        # Conectar a la primera base de datos
-        conn_a = db1()
-        cursor_a = conn_a.cursor()
-        
-        # Conectar a la segunda base de datos
-        conn_b = db2()
-        cursor_b = conn_b.cursor()
-        limit=10
+    # Conectar a la primera base de datos
+    conn_a = db1()
+    cursor_a = conn_a.cursor()
+    
+    # Conectar a la segunda base de datos
+    conn_b = db2()
+    cursor_b = conn_b.cursor()
 
-        # Obtener todas las filas de ambas bases de datos
-        query = f"SELECT * FROM {table_name} where status_column=1;"
-        cursor_a.execute(query)
-        rows_a = cursor_a.fetchall()
-        cursor_b.execute(query)
-        rows_b = cursor_b.fetchall()
+    # Obtener todas las filas de ambas bases de datos
+    query = f"SELECT * FROM {table_name} where status_column=1;"
+    cursor_a.execute(query)
+    rows_a = cursor_a.fetchall()
+    cursor_b.execute(query)
+    rows_b = cursor_b.fetchall()
+    if rows_a or rows_b:
+        try:
 
-        
-        # Obtener columnas de la tabla
-        getColumns=f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}' ORDER BY ordinal_position;"
-        cursor_a.execute(getColumns)
-        columns = [col[0] for col in cursor_a.fetchall()]
-        
-        tables_skip_three_columns = ['products_stock','receivable_details', 'debtstopay_details']
-        tables_skip_two_columns = [
-            'receivable_coins', 'receivable_taxes', 'sales_operation_coins',
-            'sales_operation_details', 'sales_operation_taxes', 
-            'debtstopay_coins', 'debtstopay_taxes'
-        ]
-
-        # Convertir listas de filas a diccionarios para un acceso más fácil
-
-        
-        if table_name in tables_skip_three_columns:
-            update_columns = ", ".join([f"{col} = %s" for col in columns[3:-1]]) # saltar las tres primeras columnas clave primarias
-            dict_a = {str(row[0])+str(row[1])+str(row[2]): row for row in rows_a}
-            dict_b = {str(row[0])+str(row[1])+str(row[2]): row for row in rows_b}
-            case_pk=0
             
-        elif table_name in tables_skip_two_columns:
-            update_columns = ", ".join([f"{col} = %s" for col in columns[2:-1]]) # Saltar las dos primeras columnas clave primaria
-            dict_a = {str(row[0])+str(row[1]): row for row in rows_a}
-            dict_b = {str(row[0])+str(row[1]): row for row in rows_b}
-            case_pk=1
+            # Obtener columnas de la tabla
+            getColumns=f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}' ORDER BY ordinal_position;"
+            cursor_a.execute(getColumns)
+            columns = [col[0] for col in cursor_a.fetchall()]
             
-        else:
-            update_columns = ", ".join([f"{col} = %s" for col in columns[1:-1]]) # Saltar la columna de clave primaria
-            dict_a = {str(row[0]): row for row in rows_a}
-            dict_b = {str(row[0]): row for row in rows_b}
-            case_pk=2
-        
-        # Iterar sobre todas las claves primarias en ambas bases de datos
-        all_keys = set(dict_a.keys()).union(dict_b.keys())
-        
-        for key in all_keys:
-            row_a = dict_a.get(key)
-            row_b = dict_b.get(key)
+            tables_skip_three_columns = ['products_stock','receivable_details', 'debtstopay_details']
+            tables_skip_two_columns = [
+                'receivable_coins', 'receivable_taxes', 'sales_operation_coins',
+                'sales_operation_details', 'sales_operation_taxes', 
+                'debtstopay_coins', 'debtstopay_taxes'
+            ]
 
-            if row_a and row_b:
-                # Ambas bases de datos tienen esta fila, comparar status de actualizacion
-                last_update_a=row_a[-2]
-                last_update_b=row_b[-2]
-                if last_update_a <= last_update_b:
-                # La fila en B es más reciente, actualizar A
+            # Convertir listas de filas a diccionarios para un acceso más fácil
+
+            
+            if table_name in tables_skip_three_columns:
+                update_columns = ", ".join([f"{col} = %s" for col in columns[3:-1]]) # saltar las tres primeras columnas clave primarias
+                dict_a = {str(row[0])+str(row[1])+str(row[2]): row for row in rows_a}
+                dict_b = {str(row[0])+str(row[1])+str(row[2]): row for row in rows_b}
+                case_pk=0
+                
+            elif table_name in tables_skip_two_columns:
+                update_columns = ", ".join([f"{col} = %s" for col in columns[2:-1]]) # Saltar las dos primeras columnas clave primaria
+                dict_a = {str(row[0])+str(row[1]): row for row in rows_a}
+                dict_b = {str(row[0])+str(row[1]): row for row in rows_b}
+                case_pk=1
+                
+            else:
+                update_columns = ", ".join([f"{col} = %s" for col in columns[1:-1]]) # Saltar la columna de clave primaria
+                dict_a = {str(row[0]): row for row in rows_a}
+                dict_b = {str(row[0]): row for row in rows_b}
+                case_pk=2
+            
+            # Iterar sobre todas las claves primarias en ambas bases de datos
+            all_keys = set(dict_a.keys()).union(dict_b.keys())
+            
+            for key in all_keys:
+                row_a = dict_a.get(key)
+                row_b = dict_b.get(key)
+
+                if row_a and row_b:
+                    # Ambas bases de datos tienen esta fila, comparar status de actualizacion
+                    last_update_a=row_a[-2]
+                    last_update_b=row_b[-2]
+                    if last_update_a <= last_update_b:
+                    # La fila en B es más reciente, actualizar A
+                        if case_pk==2:
+                            query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s"""
+                            params= row_b[1:-1] + (row_b[0],)
+                            query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s"""
+                            param_status_update=(row_a[0],)
+                            
+                            # print(params)
+                            # print(query,params,table_name)
+                            
+                            try:
+                                cursor_b.execute(query_update_status,param_status_update)
+                                cursor_a.execute(query, params)
+                                conn_a.commit()
+                                conn_b.commit()
+                                print('¡Actualizado en A!')
+                            except psycopg2.Error as e:
+                                
+                                print(f'Error: {e}')
+                                conn_a.rollback()
+                                conn_b.rollback()
+                        elif case_pk==1:
+                            query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                            params= row_b[2:-1] + (row_b[0],) + (row_b[1],)
+                            query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                            param_status_update=(row_a[0],)+ (row_a[1],)
+                            
+                            # print(params)
+                            # print(query,params,table_name)
+                            
+                            try:
+                                cursor_b.execute(query_update_status,param_status_update)
+                                cursor_a.execute(query, params)
+                                conn_a.commit()
+                                conn_b.commit()
+                                print('¡Actualizado en A!')
+                            except psycopg2.Error as e:
+                                
+                                print(f'Error: {e}')
+                                conn_a.rollback()
+                                conn_b.rollback()
+                        elif case_pk==0:
+                            query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                            params= row_b[3:-1] + (row_b[0],) + (row_b[1],) + (row_b[2],)
+                            query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                            param_status_update=(row_a[0],)+ (row_a[1],)+ (row_a[2],)
+                            
+                            # print(params)
+                            # print(query,params,table_name)
+                            
+                            try:
+                                cursor_b.execute(query_update_status,param_status_update)
+                                cursor_a.execute(query, params)
+                                conn_a.commit()
+                                conn_b.commit()
+                                print('¡Actualizado en A!')
+                            except psycopg2.Error as e:
+                                
+                                print(f'Error: {e}')
+                                conn_a.rollback()
+                                conn_b.rollback()
+                        
+                    elif last_update_a > last_update_b:
+                        # La fila en A es más reciente, actualizar B
+                        if case_pk==2:
+                            query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s"""
+                            params= row_a[1:-1] + (row_a[0],)
+                            query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s"""
+                            param_status_update=(row_b[0],)
+                            
+                            # print(params)
+                            # print(query,params,table_name)
+                            #cursor_b.execute(query,params)
+                            try:
+                                print('¡Actualizado en B!')
+                                cursor_a.execute(query_update_status,param_status_update)
+                                cursor_b.execute(query, params)
+                                conn_b.commit()
+                                conn_a.commit()
+                            except psycopg2.Error as e:
+                                
+                                print(f'Error: {e}')
+                                conn_b.rollback()
+                                conn_a.rollback()
+                        elif case_pk==1:
+                            query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                            params= row_a[2:-1] + (row_a[0],) + (row_a[1],)
+                            query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                            param_status_update=(row_b[0],) + (row_b[1],)
+                            
+                            # print(params)
+                            # print(query,params,table_name)
+                            #cursor_b.execute(query,params)
+                            try:
+                                print('¡Actualizado en B!')
+                                cursor_a.execute(query_update_status,param_status_update)
+                                cursor_b.execute(query, params)
+                                conn_b.commit()
+                                conn_a.commit()
+                            except psycopg2.Error as e:
+                                
+                                print(f'Error: {e}')
+                                conn_b.rollback()
+                                conn_a.rollback()
+                        elif case_pk==0:
+                            query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                            params= row_a[3:-1] + (row_a[0],) + (row_a[1],) + (row_a[2],)
+                            query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                            param_status_update=(row_b[0],) + (row_b[1],)+ (row_b[2],)
+                            
+                            # print(params)
+                            # print(query,params,table_name)
+                            #cursor_b.execute(query,params)
+                            try:
+                                print('¡Actualizado en B!')
+                                cursor_a.execute(query_update_status,param_status_update)
+                                cursor_b.execute(query, params)
+                                conn_b.commit()
+                                conn_a.commit()
+                            except psycopg2.Error as e:
+                                
+                                print(f'Error: {e}')
+                                conn_b.rollback()
+                                conn_a.rollback()
+                elif row_a != None and row_b==None:
+                    # La fila en A es más reciente, actualizar B
                     if case_pk==2:
-                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s"""
-                        params= row_b[1:-1] + (row_b[0],)
+                        #UPDATE QUERY LOGIC
+                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s"""
+                        params= row_a[1:-1] + (row_a[0],)
+                        #INSERT QUERY LOGIC
+                        placeholders = ", ".join(["%s"] * len(row_a))
+                        query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                        #UPDATE STATUS LOGIC
                         query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s"""
                         param_status_update=(row_a[0],)
                         
                         # print(params)
                         # print(query,params,table_name)
-                        
+                        #cursor_b.execute(query,params)
                         try:
-                            cursor_b.execute(query_update_status,param_status_update)
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
+                            cursor_b.execute(query,params)
                             conn_b.commit()
-                            print('¡Actualizado en A!')
+
+                            if cursor_b.rowcount > 0:
+                                print('¡Actualizado en B!')
+                            else:
+                                cursor_b.execute(query_insert,row_a)
+                                conn_b.commit()
+                                print('Insertado en B!')
+
+                            cursor_a.execute(query_update_status,param_status_update)
+                            conn_a.commit()
                         except psycopg2.Error as e:
-                            
-                            print(f'Error: {e}')
-                            conn_a.rollback()
-                            conn_b.rollback()
+                            print(e)
+                            cursor_a.rollback()
+                            cursor_b.rollback()
                     elif case_pk==1:
-                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                        params= row_b[2:-1] + (row_b[0],) + (row_b[1],)
+                        #UPDATE QUERY LOGIC
+                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                        params= row_a[2:-1] + (row_a[0],) + (row_a[1],)
+                        #INSERT QUERY LOGIC
+                        placeholders = ", ".join(["%s"] * len(row_a))
+                        query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                        #UPDATE STATUS LOGIC
                         query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                        param_status_update=(row_a[0],)+ (row_a[1],)
-                        
+                        param_status_update=(row_a[0],) + (row_a[1],)
                         # print(params)
                         # print(query,params,table_name)
-                        
+                        #cursor_b.execute(query,params)
                         try:
-                            cursor_b.execute(query_update_status,param_status_update)
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
+                            cursor_b.execute(query,params)
                             conn_b.commit()
-                            print('¡Actualizado en A!')
+
+                            if cursor_b.rowcount > 0:
+                                print('¡Actualizado en B!')
+                            else:
+                                cursor_b.execute(query_insert,row_a)
+                                conn_b.commit()
+                                print('Insertado en B!')
+
+                            cursor_a.execute(query_update_status,param_status_update)
+                            conn_a.commit()
                         except psycopg2.Error as e:
-                            
-                            print(f'Error: {e}')
-                            conn_a.rollback()
-                            conn_b.rollback()
+                            print(e)
+                            cursor_a.rollback()
+                            cursor_b.rollback()
                     elif case_pk==0:
-                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                        params= row_b[3:-1] + (row_b[0],) + (row_b[1],) + (row_b[2],)
+                        #UPDATE QUERY LOGIC
+                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                        params= row_a[3:-1] + (row_a[0],) + (row_a[1],) + (row_a[2],)
+                        #INSERT QUERY LOGIC
+                        placeholders = ", ".join(["%s"] * len(row_a))
+                        query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                        #UPDATE STATUS LOGIC
                         query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                        param_status_update=(row_a[0],)+ (row_a[1],)+ (row_a[2],)
-                        
+                        param_status_update=(row_a[0],) + (row_a[1],)+ (row_a[2],)
                         # print(params)
                         # print(query,params,table_name)
-                        
+                        #cursor_b.execute(query,params)
                         try:
-                            cursor_b.execute(query_update_status,param_status_update)
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
+                            cursor_b.execute(query,params)
                             conn_b.commit()
-                            print('¡Actualizado en A!')
+
+                            if cursor_b.rowcount > 0:
+                                print('¡Actualizado en B!')
+                            else:
+                                cursor_b.execute(query_insert,row_a)
+                                conn_b.commit()
+                                print('Insertado en B!')
+
+                            cursor_a.execute(query_update_status,param_status_update)
+                            conn_a.commit()
                         except psycopg2.Error as e:
-                            
-                            print(f'Error: {e}')
-                            conn_a.rollback()
-                            conn_b.rollback()
-                    
-                elif last_update_a > last_update_b:
-                    # La fila en A es más reciente, actualizar B
+                            print(e)
+                            cursor_a.rollback()
+                            cursor_b.rollback()
+                elif row_b != None and row_a==None:
+                    # La fila en B es más reciente, actualizar A
                     if case_pk==2:
+                        #UPDATE QUERY LOGIC
                         query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s"""
-                        params= row_a[1:-1] + (row_a[0],)
+                        params= row_b[1:-1] + (row_b[0],)
+                        #INSERT QUERY LOGIC
+                        placeholders = ", ".join(["%s"] * len(row_b))
+                        query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                        #UPDATE STATUS LOGIC
                         query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s"""
                         param_status_update=(row_b[0],)
                         
                         # print(params)
                         # print(query,params,table_name)
-                        #cursor_b.execute(query,params)
                         try:
-                            print('¡Actualizado en B!')
-                            cursor_a.execute(query_update_status,param_status_update)
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
+                            cursor_a.execute(query,params)
                             conn_a.commit()
+
+                            if cursor_a.rowcount > 0:
+                                print('¡Actualizado en A!')
+                                print(cursor_a.rowcount)
+                            else:
+                                cursor_a.execute(query_insert,row_b)
+                                conn_a.commit()
+                                print('Insertado en A!')
+
+                            cursor_b.execute(query_update_status,param_status_update)
+                            conn_b.commit()
                         except psycopg2.Error as e:
-                            
-                            print(f'Error: {e}')
-                            conn_b.rollback()
+                            print(e)
                             conn_a.rollback()
+                            conn_b.rollback()
                     elif case_pk==1:
-                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                        params= row_a[2:-1] + (row_a[0],) + (row_a[1],)
+                        #UPDATE QUERY LOGIC
+                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
+                        params= row_b[2:-1] + (row_b[0],) + (row_b[1],)
+                        #INSERT QUERY LOGIC
+                        placeholders = ", ".join(["%s"] * len(row_b))
+                        query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                        #UPDATE STATUS LOGIC
                         query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                        param_status_update=(row_b[0],) + (row_b[1],)
-                        
+                        param_status_update=(row_b[0],)+ (row_b[1],)
                         # print(params)
                         # print(query,params,table_name)
-                        #cursor_b.execute(query,params)
+                        
                         try:
-                            print('¡Actualizado en B!')
-                            cursor_a.execute(query_update_status,param_status_update)
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
+                            cursor_a.execute(query,params)
                             conn_a.commit()
+
+                            if cursor_a.rowcount > 0:
+                                print('¡Actualizado en A!')
+                                print(cursor_a.rowcount)
+                            else:
+                                cursor_a.execute(query_insert,row_b)
+                                conn_a.commit()
+                                print('Insertado en A!')
+
+                            cursor_b.execute(query_update_status,param_status_update)
+                            conn_b.commit()
                         except psycopg2.Error as e:
-                            
-                            print(f'Error: {e}')
-                            conn_b.rollback()
+                            print(e)
                             conn_a.rollback()
+                            conn_b.rollback()
                     elif case_pk==0:
-                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                        params= row_a[3:-1] + (row_a[0],) + (row_a[1],) + (row_a[2],)
+                        #UPDATE QUERY LOGIC
+                        query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
+                        params= row_b[3:-1] + (row_b[0],) + (row_b[1],) + (row_b[2],)
+                        #INSERT QUERY LOGIC
+                        placeholders = ", ".join(["%s"] * len(row_b))
+                        query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
+                        #UPDATE STATUS LOGIC
                         query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                        param_status_update=(row_b[0],) + (row_b[1],)+ (row_b[2],)
-                        
+                        param_status_update=(row_b[0],)+ (row_b[1],)+ (row_b[2],)
                         # print(params)
                         # print(query,params,table_name)
-                        #cursor_b.execute(query,params)
+                        
                         try:
-                            print('¡Actualizado en B!')
-                            cursor_a.execute(query_update_status,param_status_update)
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
+                            cursor_a.execute(query,params)
                             conn_a.commit()
+
+                            if cursor_a.rowcount > 0:
+                                print('¡Actualizado en A!')
+                                print(cursor_a.rowcount)
+                            else:
+                                cursor_a.execute(query_insert,row_b)
+                                conn_a.commit()
+                                print('Insertado en A!')
+
+                            cursor_b.execute(query_update_status,param_status_update)
+                            conn_b.commit()
                         except psycopg2.Error as e:
-                            
-                            print(f'Error: {e}')
-                            conn_b.rollback()
+                            print(e)
                             conn_a.rollback()
-            elif row_a != None and row_b==None:
-                # La fila en A es más reciente, actualizar B
-                if case_pk==2:
-                    query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s"""
-                    params= row_a[1:-1] + (row_a[0],)
-                    query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s"""
-                    param_status_update=(row_a[0],)
-                    
-                    # print(params)
-                    # print(query,params,table_name)
-                    #cursor_b.execute(query,params)
-                    try:
-                        cursor_a.execute(query_update_status,param_status_update)
-                        try:
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
-                            print('¡Actualizado en B!')
-                        except psycopg2.Error as e:
-                            placeholders = ", ".join(["%s"] * len(row_a))
-                            query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                            try:
-                                cursor_b.execute(query_insert,row_a)
-                                conn_b.commit()
-                                print('¡Insercion en B!')
-                            except psycopg2.Error as e:
-                                
-                                print(f'Error: {e}')
-                                conn_b.rollback()
-                        conn_a.commit()
-                    except psycopg2.Error as e:
-                        
-                        print(f'Error: {e}')
-                        conn_a.rollback()
-                elif case_pk==1:
-                    query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                    params= row_a[2:-1] + (row_a[0],) + (row_a[1],)
-                    query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                    param_status_update=(row_a[0],) + (row_a[1],)
-                    
-                    # print(params)
-                    # print(query,params,table_name)
-                    #cursor_b.execute(query,params)
-                    try:
-                        cursor_a.execute(query_update_status,param_status_update)
-                        try:
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
-                            print('¡Actualizado en B!')
-                        except psycopg2.Error as e:
-                            placeholders = ", ".join(["%s"] * len(row_a))
-                            query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                            try:
-                                cursor_b.execute(query_insert,row_a)
-                                conn_b.commit()
-                                print('¡Insercion en B!')
-                            except psycopg2.Error as e:
-                                
-                                print(f'Error: {e}')
-                                conn_b.rollback()
-                        conn_a.commit()
-                    except psycopg2.Error as e:
-                        
-                        print(f'Error: {e}')
-                        conn_a.rollback()
-                elif case_pk==0:
-                    query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                    params= row_a[3:-1] + (row_a[0],) + (row_a[1],) + (row_a[2],)
-                    query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                    param_status_update=(row_a[0],) + (row_a[1],)+ (row_a[2],)
-                    
-                    # print(params)
-                    # print(query,params,table_name)
-                    #cursor_b.execute(query,params)
-                    try:
-                        cursor_a.execute(query_update_status,param_status_update)
-                        try:
-                            cursor_b.execute(query, params)
-                            conn_b.commit()
-                            print('¡Actualizado en B!')
-                        except psycopg2.Error as e:
-                            placeholders = ", ".join(["%s"] * len(row_a))
-                            query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                            try:
-                                cursor_b.execute(query_insert,row_a)
-                                conn_b.commit()
-                                print('¡Insercion en B!')
-                            except psycopg2.Error as e:
-                                
-                                print(f'Error: {e}')
-                                conn_b.rollback()
-                        conn_a.commit()
-                    except psycopg2.Error as e:
-                        
-                        print(f'Error: {e}')
-                        conn_a.rollback()
-            elif row_b != None and row_a==None:
-                # La fila en B es más reciente, actualizar A
-                if case_pk==2:
-                    query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s"""
-                    params= row_b[1:-1] + (row_b[0],)
-                    query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s"""
-                    param_status_update=(row_b[0],)
-                    
-                    # print(params)
-                    # print(query,params,table_name)
-                    
-                    try:
-                        cursor_b.execute(query_update_status,param_status_update)
-                        try:
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
-                            print('¡Actualizado en A!')
-                        except psycopg2.Error as e:
-                            placeholders = ", ".join(["%s"] * len(row_b))
-                            query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                            try:
-                                cursor_a.execute(query_insert,row_b)
-                                conn_a.commit()
-                                print('¡Insercion en A!')
-                            except psycopg2.Error as e:
-                                
-                                print(f'Error: {e}')
-                                conn_a.rollback()
-                        conn_b.commit()
-                    except psycopg2.Error as e:
-                        
-                        print(f'Error: {e}')
-                        conn_b.rollback()
-                elif case_pk==1:
-                    query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                    params= row_b[2:-1] + (row_b[0],) + (row_b[1],)
-                    query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s"""
-                    param_status_update=(row_b[0],)+ (row_b[1],)
-                    
-                    # print(params)
-                    # print(query,params,table_name)
-                    
-                    try:
-                        cursor_b.execute(query_update_status,param_status_update)
-                        try:
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
-                            print('¡Actualizado en A!')
-                        except psycopg2.Error as e:
-                            placeholders = ", ".join(["%s"] * len(row_b))
-                            query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                            try:
-                                cursor_a.execute(query_insert,row_b)
-                                conn_a.commit()
-                                print('¡Insercion en A!')
-                            except psycopg2.Error as e:
-                                
-                                print(f'Error: {e}')
-                                conn_a.rollback()
-                        conn_b.commit()
-                    except psycopg2.Error as e:
-                        
-                        print(f'Error: {e}')
-                        conn_b.rollback()
-                elif case_pk==0:
-                    query=f"""UPDATE {table_name} SET {update_columns}, status_column = 0  WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                    params= row_b[3:-1] + (row_b[0],) + (row_b[1],) + (row_b[2],)
-                    query_update_status=f"""UPDATE {table_name} SET status_column = 0 WHERE {columns[0]} = %s AND {columns[1]} = %s AND {columns[2]} = %s"""
-                    param_status_update=(row_b[0],)+ (row_b[1],)+ (row_b[2],)
-                    
-                    # print(params)
-                    # print(query,params,table_name)
-                    
-                    try:
-                        cursor_b.execute(query_update_status,param_status_update)
-                        try:
-                            cursor_a.execute(query, params)
-                            conn_a.commit()
-                            print('¡Actualizado en A!')
-                        except psycopg2.Error as e:
-                            placeholders = ", ".join(["%s"] * len(row_b))
-                            query_insert=f""" INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) """
-                            try:
-                                cursor_a.execute(query_insert,row_b)
-                                conn_a.commit()
-                                print('¡Insercion en A!')
-                            except psycopg2.Error as e:
-                                
-                                print(f'Error: {e}')
-                                conn_a.rollback()
-                        conn_b.commit()
-                    except psycopg2.Error as e:
-                        
-                        print(f'Error: {e}')
-                        conn_b.rollback()
-        # print(table_name)
-        
+                            conn_b.rollback()
+            # print(table_name)
+            
 
-    except psycopg2.Error as e:
-        print(f"Error: {e}")
-    finally:
+        except psycopg2.Error as e:
+            print(f"Error: {e}")
+        finally:
         # Cerrar las conexiones
-        if cursor_a:
-            cursor_a.close()
-        if conn_a:
-            conn_a.close()
-        if cursor_b:
-            cursor_b.close()
-        if conn_b:
-            conn_b.close()
-
+            if cursor_a:
+                cursor_a.close()
+            if conn_a:
+                conn_a.close()
+            if cursor_b:
+                cursor_b.close()
+            if conn_b:
+                conn_b.close()
+    else:
+        return
 
 async def run_sync_table_in_executor(executor, table_name):
     loop = asyncio.get_running_loop()

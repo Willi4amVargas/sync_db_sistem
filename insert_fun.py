@@ -34,7 +34,8 @@ begin
 			  register_date, 
 			  register_hour,
 			  user_code,
-			  last_update)
+			  last_update,
+			  status_column)
 			  values
 			  (p_code, 
 			  p_sales_aliquot, 
@@ -42,7 +43,8 @@ begin
 			  current_date,	
 			  current_time, 
 			  p_user,
-			  NOW()); 
+			  NOW(),
+			  1); 
 
 			end if;
 			
@@ -59,14 +61,15 @@ begin
 			show_in_browsers = p_show_in_browsers,
 			value_inventory = p_value_inventory,
 			apply_igtf = p_apply_igtf,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 
 
 
 		else
 			insert into coin
-			(code,description,symbol,sales_aliquot,buy_aliquot,factor_type,rounding_type,status,show_in_browsers,value_inventory,apply_igtf,last_update)values(p_code,p_name,p_symbol,p_sales_aliquot,p_buy_aliquot,p_factor_type,p_rounding_type,p_status,p_show_in_browsers,p_value_inventory,p_apply_igtf,NOW());
+			(code,description,symbol,sales_aliquot,buy_aliquot,factor_type,rounding_type,status,show_in_browsers,value_inventory,apply_igtf,last_update,status_column)values(p_code,p_name,p_symbol,p_sales_aliquot,p_buy_aliquot,p_factor_type,p_rounding_type,p_status,p_show_in_browsers,p_value_inventory,p_apply_igtf,NOW());
 		end if;		
 	
 
@@ -91,7 +94,8 @@ $BODY$begin
 			update units
 			set
 			description=p_name,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into units
@@ -121,7 +125,8 @@ $BODY$begin
 			update store
 			set
 			description=p_name,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where 
 			code = p_code;
 		else
@@ -165,7 +170,8 @@ $BODY$begin
 			company_email = p_company_email,			
 			technician = p_technician,
 			security_code = p_security_code,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 
 		else
@@ -237,7 +243,8 @@ $BODY$begin
 			numeration_income = p_numeration_income,
 			bio_sale_point = p_bio_sale_point,
 			sale_document_type = p_sale_document_type,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into stations
@@ -313,7 +320,8 @@ $BODY$begin
 			retention_municipal_agent =  p_retention_municipal_agent,
 			retention_islr_agent =  p_retention_islr_agent,
 			perception_igtf_agent = p_perception_igtf_agent,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code=p_code;
 
 		else
@@ -395,14 +403,16 @@ $BODY$begin
 			percent_gerencial_debit_note = p_percent_gerencial_debit_note,
 			percent_gerencial_credit_note = p_percent_gerencial_credit_note,
 			percent_returned_check = p_percent_returned_check,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 
 			if(p_status='02')then
 				update clients
 				set 
 				seller='00',
-				last_update=NOW()
+				last_update=NOW(),
+				status_column=1
 				where seller = p_code;
 			end if;	
 			
@@ -431,7 +441,8 @@ $BODY$begin
 			update citys
 			set
 			description=p_name,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into citys
@@ -459,7 +470,8 @@ $BODY$begin
 			update provinces
 			set
 			description=p_name,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into provinces
@@ -515,7 +527,8 @@ $BODY$begin
 			retention_tax_agent = p_retention_tax_agent,
 			retention_municipal_agent = p_retention_municipal_agent,
 			retention_islr_agent = p_retention_islr_agent,
-			last_update=now()
+			last_update=now(),
+			status_column=1
 			where code=p_code;
 
 		else
@@ -611,7 +624,8 @@ $BODY$begin
 			aliquot = p_aliquot,
 			short_description = p_short_description,
 			line = p_type,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into taxes (code,description,aliquot,short_description,line,last_update) values(p_code,p_description,p_aliquot,p_short_description,p_type,NOW());
@@ -644,7 +658,8 @@ $BODY$begin
 			perc_offer_price=p_percent_offer_price,
 			perc_higher_price=p_percent_higher_price,
 			perc_minimum_price=p_percent_minimum_price,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into department
@@ -694,7 +709,8 @@ $BODY$begin
 			percent_commission_higher_price = p_percent_commission_higher_price,
 			percent_commission_minimum_price = p_percent_commission_minimum_price,
 			percent_commission_variable_price = p_percent_commission_variable_price,
-			last_update=NOW()
+			last_update=NOW(),
+			status_column=1
 			where code = p_code;
 		else
 			insert into technician
@@ -762,7 +778,8 @@ $BODY$begin
 			extract_net_from_unit_cost_plus_tax = p_extract_net_from_unit_cost_plus_tax,
 			extract_net_from_unit_price_plus_tax = p_extract_net_from_unit_price_plus_tax,
 			maximum_stock = p_maximum_stock,
-			last_update=NOW()		
+			last_update=NOW(),
+			status_column=1		
 			WHERE code=p_code;
 		
 		else
@@ -882,7 +899,8 @@ $BODY$begin
 		expire_date = p_expire_date,
 		apply_prices = p_apply_prices,
 		elaboration_date = p_elaboration_date,
-		last_update=NOW()
+		last_update=NOW(),
+		status_column=1
 		where correlative = p_correlative;
 		
 	else
@@ -963,7 +981,8 @@ $BODY$begin
 		   width = p_width,
 		   weight = p_weight,
 		   capacitance = p_capacitance,
-		   last_update=NOW()
+		   last_update=NOW(),
+		   status_column=1
 		   where correlative=p_correlative;
 
 	else
@@ -1078,19 +1097,22 @@ begin
 			update products_stock
 			set
 			stock = stock + v_stock,
-            last_update=NOW()
+            last_update=NOW(),
+			status_column=1
 			where product_code = p_product_code and store=p_store and locations = p_locations;
 		elsif(p_type_amount = 'ORDERED')then
 			update products_stock
 			set
 			ordered_stock = ordered_stock + v_stock,
-            last_update=NOW()
+            last_update=NOW(),
+			status_column=1
 			where product_code = p_product_code and store=p_store and locations = p_locations;
 		elsif(p_type_amount = 'COMMITTED')then
 			update products_stock
 			set
 			committed_stock = committed_stock + v_stock,
-            last_update=NOW()
+            last_update=NOW(),
+			status_column=1
 			where product_code = p_product_code and store=p_store and locations = p_locations;
 		end if;
 
